@@ -29,3 +29,7 @@ Joshua found a Joshua in Texas, the card only shows the city name and can't be d
 What the AI gave me. During the PRD interview, I asked for a “search along the road” feature, like Google Maps: pick a category (gas station, coffee, food, hotel) and see places near the route. The agent recommended leaving it out of version 1. It said none of my three APIs can do it. OSRM only routes, and Open-Meteo Geocoding only finds towns. It would need a fourth API (OpenStreetMap’s Overpass) plus code to keep only the results near the route, and it suggested putting it on the Later list.
 
 What I changed. I didn’t accept that at first. Searching along the road is one of the main reasons I wanted this tool, so I pushed back and wrote out how it should work: the Overpass API, the categories, sampling points from the OSRM route and searching about 2 miles around them, a “Find along this leg” tab in the add-stop card, and its own loading, nothing-found and error states.
+
+How I knew. When I finished the PRD, I looked at what version 1 really needed: per-leg times, stops and arrival times all work with OSRM and Open-Meteo alone. The along-road search needed a fourth API whose CORS I had not tested yet, and four extra states. So the agent was right that it was the riskiest piece, and I moved it to Later myself so the core tool would ship working.
+
+The final decision is in commit [`29a8b6e`](https://github.com/SamYe-git/road-trip-planner/commit/29a8b6e), where “Find along this leg” is the first item under Later in `PRD.md`.
