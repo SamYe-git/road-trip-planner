@@ -47,9 +47,12 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 
 **Stop cards.**
 - A `--paper` card, 68% wide, with a 1.8px graphite border and a hard `3px 3px 0` graphite shadow. Cards alternate left/right, tilted -0.6° and +0.6°.
-- The **town** is in `--font-display` uppercase at 21px. A red number badge sits at the top right.
-- A monospace meta line shows "Arrive 9:40 AM" and, on middle stops, "Leave 10:40 AM".
-- **Minutes here** *(new)*: on middle stops only, a small number input (about 6ch wide) in the meta line, styled like the form inputs, labelled "min here" in the monospace label style.
+- The **town** is in `--font-display` uppercase at 21px, followed by its region in the same line ("STOWE, VT"). A red number badge sits at the top right.
+- A monospace meta line shows "Arrive 9:40 AM" and, on Quick stops, "Leave 10:40 AM".
+- **Type pills** *(new)*: on middle stops only, two small pills, **Stay** and **Quick stop**, under the town, in the mockup's chip style at 12px. The current type is filled graphite.
+- **Minutes here** *(new)*: on Quick stops only, a small number input (about 6ch wide) in the meta line, styled like the form inputs, labelled "min here" in the monospace label style.
+- **Leave on** *(new)*: on Stays only, a date-and-time input in the meta line, in the same input style, labelled "Leave on" in the monospace label style. It replaces both "min here" and the Leave text.
+- **"Set a leave time"** *(new)*: in place of the arrival time on stops after a Stay with no Leave on, in hand font, `--graphite-soft`.
 - **"earliest" tag** *(new)*: a `--stripe-gold` monospace uppercase tag (10px, graphite text) placed before an arrival time that comes after an empty minutes field, for example `EARLIEST` Arrive 1:40 PM.
 - **Remove ×**: on middle stops, at the bottom right in `--graphite-soft`, turning `--warn` on hover. Its label is "Remove {town}".
 
@@ -60,7 +63,7 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 - Its heading reads "Add a stop between {A} and {B}" (display font, 17px).
 - **Town or place** input, with the placeholder "Try Concord or Woodstock". Matches appear as pills, and hints and errors show in hand font.
 - **Add stop** is a solid red button and **Cancel** is a ghost button.
-- The mockup's stay-time chips are left out.
+- **Stop type** *(new)*: two pills, **Stay** (selected by default) and **Quick stop**, between the matches and the buttons, in the mockup's chip style.
 
 **Sheet footer.** Separated by a 1.5px graphite rule. On the left is **"Open this route in Google Maps ↗"** (bold graphite link). On the right are two ghost buttons: **Start a new trip** *(new, same ghost style)* and **Fold the map**, which returns to the cab.
 
@@ -70,6 +73,7 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 |---|---|---|---|
 | Empty: nothing chosen | Screen 1, the cab with the folded map | Whole page | Caption: "Click the map (or press Enter on it)." |
 | Empty: no town matches | No pills | Under the input, in hand font, `--graphite-soft` | "No town called "{query}". Check the spelling." |
+| Empty: Stay with no Leave on | Arrival times after it are replaced | Stop cards after that Stay, hand font, `--graphite-soft` | "Set a leave time" |
 | Loading | Route area replaced by a centered panel, truck drives across the road | Route area | **Plotting your route…** / "Finding each stop and timing every leg." |
 | Error: route | Centered panel, title in `--warn`, graphite **Try again** button | Route area | **Couldn't reach the route service** / "Check your connection, then try again. Your stops are still here." |
 | Error: town search | Card stays open, one line in `--warn` hand font | Inside the search card or under the field | "Couldn't search towns. Check your connection, then try again." *(new wording, not in PRD)* |
@@ -77,6 +81,7 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 | Invalid: no start | As above, on Start | Under the field | "Add a start first" |
 | Invalid: no town picked | Line under the buttons | Inside the add-stop card | "Pick a town from the list first." |
 | Invalid: bad minutes | Minutes input gets a `--warn` border | Under the meta line, in hand font | "Enter minutes as 0 or more." |
+| Invalid: Leave on before arrival | Leave on input gets a `--warn` border, and times keep their last valid values | Under the meta line, in hand font | "Leave after you arrive (Sat 1:15 PM)." with the stop's arrival time |
 | Ideal | Summary, zig-zag stop cards, legs with time · miles, + pin and Maps link, footer | Sheet | Times from OSRM and the Leave time |
 
 ## Motion

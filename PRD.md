@@ -29,16 +29,20 @@ Version 1 is one page with two screens.
 2. **Route.** Stop cards zig-zag down the map, with a leg between each pair of cards.
    - **Summary** at the top: total miles and total drive time.
    - **Each leg** shows drive time and miles (converted from OSRM's seconds and meters), a **+ pin**, and an **"Open this leg in Google Maps"** link.
-   - **Each stop card** shows its town and arrival time. Middle stops also show:
-     - a **minutes here** number field, editable at any time
-     - the leave time (arrival + minutes)
+   - **Each stop card** shows its town with its state or region (for example "Stowe, VT"), so a wrong match is easy to spot. The region comes from the geocoding result's `admin1`, with US states abbreviated. The card also shows the arrival time.
+   - **Middle stops** also have:
+     - a **type**, either **Stay** or **Quick stop**, which can be switched on the card at any time
+     - for a **Quick stop** (gas, food, rest): a **minutes here** number field, and a leave time of arrival + minutes
+     - for a **Stay** (a city, overnight or several days): a **Leave on** date-and-time field. The next leg starts at that time.
      - a **×** to remove the stop
-   - **Arrival times** start from the Leave time and add each leg's drive time and each stop's minutes.
+   - **Arrival times** start from the Leave time and add each leg's drive time and each Quick stop's minutes. After a Stay, the times restart from its Leave on.
      - An empty minutes field counts as 0.
-     - Every arrival after an empty minutes field is tagged **"earliest"**.
-     - Editing minutes recalculates the times straight away, without calling OSRM again.
+     - Every arrival after an empty minutes field is tagged **"earliest"**, until a Stay with a Leave on restarts the times.
+     - If a Stay's Leave on is empty, every stop after it shows **"Set a leave time"** instead of an arrival time.
+     - Editing minutes, Leave on, a stop's type or Leave recalculates the times straight away, without calling OSRM again.
 3. **Add a stop.** The + pin on a leg opens a card in that gap.
    - Search a town (Open-Meteo Geocoding) and pick a match.
+   - Choose the stop type with two pills, **Stay** (the default) and **Quick stop**.
    - **Add stop** splits the leg in two, fetches the route again and redraws. **Cancel** closes the card.
 4. **Whole-route link:** "Open this route in Google Maps ↗" at the bottom, with every stop included as a waypoint.
 5. **Saving**
@@ -54,7 +58,8 @@ Version 1 is one page with two screens.
 | OSRM CORS check from a GitHub Pages site | **Missing**, not yet run | Sam, Console check from the assignment |
 | Open-Meteo Geocoding: `results[].name`, `admin1`, `country`, `latitude`, `longitude`. No `results` field when nothing matches | Have, CORS-safe per the assignment | Open-Meteo |
 | Test route: Wellesley, MA → Concord, NH → Woodstock, NH → Stowe, VT | Have | Sam |
-| Minutes at each stop | Entered by the user during the trip, no defaults | User |
+| Minutes at each Quick stop, Leave on for each Stay | Entered by the user, no defaults | User |
+| US state abbreviations (for "Stowe, VT") | Have, a fixed list in the code | Standard USPS codes |
 | Visual design | Have `design/glovebox-mockup.html`. The sketch PDFs are in `design/` | Sam |
 | `DESIGN.md` | **Missing**, required by the assignment | Sam, based on the mockup |
 
@@ -67,6 +72,7 @@ Follows `DESIGN.md` (to be written from `design/glovebox-mockup.html`).
 - **Empty**
   - Before anything is chosen: Screen 1, the folded map in the cab.
   - When a town search finds nothing (no `results` field): "No town called "…". Check the spelling."
+  - When a Stay has no Leave on: every stop after it shows "Set a leave time" in place of its arrival time.
 - **Loading:** "Plotting your route…" with "Finding each stop and timing every leg." The truck drives across the road at the top.
 - **Error**
   - OSRM fails, or answers with a `code` other than `"Ok"`: "Couldn't reach the route service. Check your connection, then try again. Your stops are still here." It has a **Try again** button.
@@ -77,6 +83,8 @@ Follows `DESIGN.md` (to be written from `design/glovebox-mockup.html`).
   - Plan trip without a picked start or destination: "Add a destination first" (or the start equivalent).
   - Add stop with no town picked: "Pick a town from the list first."
   - Minutes that are negative or not a number: "Enter minutes as 0 or more."
+  - A Stay's Leave on earlier than its arrival: "Leave after you arrive ({arrival time})."
+  - In both of the last two cases, the times keep their last valid values.
 
 The partial state is left out because OSRM returns every leg or none.
 
@@ -84,7 +92,7 @@ The partial state is left out because OSRM returns every leg or none.
 
 1. Plan Wellesley → Stowe and see the drive time, distance and total.
 2. Add Concord, NH and Woodstock, NH with the + pins, and see three legs and the new total.
-3. Enter 60 minutes at Woodstock. The Stowe arrival moves 60 minutes later and loses its "earliest" tag.
+3. Make Concord a Stay with a Leave on time, and Woodstock a Quick stop with 60 minutes. Woodstock's arrival is counted from Concord's Leave on, and Stowe's arrival is Woodstock's arrival + 60 minutes + the last leg, with no "earliest" tag.
 4. Open one leg in Google Maps.
 5. Reload the page and find the trip still there.
 
@@ -97,7 +105,7 @@ The partial state is left out because OSRM returns every leg or none.
 ## Later
 
 - **Find along this leg:** category search (gas, coffee, food, hotel, rest area) with the OpenStreetMap Overpass API, using `around:` on sampled OSRM route geometry. It needs a CORS check first, plus its own loading, nothing-found, error and invalid-input states.
-- **Day splitting** by max driving time per day, with an over-limit warning, overnight stops, and "Day 1 / Day 2" headers.
+- **Day splitting** by max driving time per day, with an over-limit warning and "Day 1 / Day 2" headers. (Overnight stops are covered in version 1 by the Stay type.)
 - **Gas:** MPG and tank size to show when to fill up, plus total cost split per person (needs a price per gallon, which is missing).
 - **Weather on arrival** from the Open-Meteo Forecast for the arrival hour (16-day limit).
 - Drag to reorder stops.
