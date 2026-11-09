@@ -43,6 +43,24 @@
     return [r.name, r.admin1, r.country].filter(Boolean).join(', ');
   }
 
+  var US_STATES = {
+    'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA', 'Colorado': 'CO',
+    'Connecticut': 'CT', 'Delaware': 'DE', 'District of Columbia': 'DC', 'Washington, D.C.': 'DC', 'Florida': 'FL', 'Georgia': 'GA',
+    'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS', 'Kentucky': 'KY',
+    'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD', 'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN',
+    'Mississippi': 'MS', 'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH',
+    'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+    'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+    'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT', 'Virginia': 'VA',
+    'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
+  };
+
+  // "VT" for a US state, otherwise the full region, or the country when there is no region
+  function regionOf(r) {
+    if (r.country_code === 'US' && US_STATES[r.admin1]) return US_STATES[r.admin1];
+    return r.admin1 || r.country || '';
+  }
+
   // Returns an array of matches ([] when the response has no results field). Throws on a failed request.
   async function searchTowns(q) {
     var response = await fetch(GEO_URL + encodeURIComponent(q));
@@ -76,7 +94,7 @@
         b.type = 'button';
         b.setAttribute('aria-pressed', 'false');
         b.addEventListener('click', function () {
-          field.picked = { name: r.name, label: townLabel(r), lat: r.latitude, lon: r.longitude };
+          field.picked = { name: r.name, region: regionOf(r), label: townLabel(r), lat: r.latitude, lon: r.longitude };
           input.value = r.name;
           list.querySelectorAll('.pick').forEach(function (p) { p.setAttribute('aria-pressed', String(p === b)); });
           clearErr();
@@ -115,6 +133,13 @@
     field.invalid = function (msg) {
       input.setAttribute('aria-invalid', 'true');
       showErr(msg);
+    };
+    // Sets the picked town from outside (restoring a saved trip), or clears the field with null
+    field.set = function (p) {
+      field.picked = p;
+      input.value = p ? p.name : '';
+      list.replaceChildren();
+      clearErr();
     };
     return field;
   }
@@ -224,13 +249,16 @@
 
     var town = townSearch(input, list, err);
 
+    var choice = { type: 'stay' };
+    box.appendChild(typePills(choice, function () {}));
+
     var row = el('div', 'addrow');
     var ok = el('button', 'btn-solid', 'Add stop');
     ok.type = 'button';
     ok.addEventListener('click', function () {
       if (!town.picked) { town.invalid('Pick a town from the list first.'); return; }
       var next = stops.slice();
-      next.splice(i + 1, 0, town.picked);
+      next.splice(i + 1, 0, Object.assign({}, town.picked, { type: choice.type, minutes: null, leaveOn: null }));
       fetchRoute(next);
     });
     var no = el('button', 'btn-ghost', 'Cancel');
@@ -245,7 +273,7 @@
   // ---------- Arrival and leave times ----------
 
   var leaveInput = document.getElementById('leave');
-  var timeEls = [];             // per stop: { arrive, earliest, leave } elements, filled by render()
+  var timeEls = [];             // per stop: { arrive, earliest, leave, stayErr, arrival } filled by render() and updateTimes()
 
   // "9:40 AM", or "Sat 1:15 AM" when it's no longer the departure day
   function clock(d, startDay) {
@@ -254,26 +282,58 @@
     return d.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + t;
   }
 
-  // Recalculates every arrival and leave time from Leave, the legs and each stop's minutes.
-  // Only touches the time text, so a minutes field being typed in keeps its focus.
+  function stayErrText(arrival, depart) {
+    return 'Leave after you arrive (' + clock(new Date(arrival), depart) + ').';
+  }
+
+  // Recalculates every arrival and leave time from Leave, the legs, each Quick stop's minutes
+  // and each Stay's Leave on. Only touches the time text, so a field being typed in keeps its focus.
   function updateTimes() {
-    var depart = leaveInput.value ? new Date(leaveInput.value) : null;
-    var t = depart ? depart.getTime() : 0;
-    var guess = false;          // true once a stop before this one has no minutes yet
+    var depart = leaveInput.value ? new Date(leaveInput.value) : null;  // the day that needs no weekday
+    var t = depart ? depart.getTime() : null;  // null once the time is unknown
+    var unset = false;          // true after a Stay with no Leave on
+    var guess = false;          // true once a Quick stop before this one has no minutes yet
     stops.forEach(function (s, i) {
       var e = timeEls[i];
       if (!e) return;
+      e.arrival = null;
+      e.day = depart;
       if (i > 0) {
-        t += Math.round(legs[i - 1].duration / 60) * 60000; // whole minutes, matching the leg label
-        e.arrive.textContent = depart ? 'Arrive ' + clock(new Date(t), depart) : '';
-        e.earliest.hidden = !(depart && guess);
+        if (t != null) {
+          t += Math.round(legs[i - 1].duration / 60) * 60000; // whole minutes, matching the leg label
+          e.arrival = t;
+          e.arrive.textContent = 'Arrive ' + clock(new Date(t), depart);
+        } else {
+          e.arrive.textContent = unset ? 'Set a leave time' : '';
+        }
+        e.arrive.classList.toggle('unset', t == null && unset);
+        e.earliest.hidden = !(t != null && guess);
       }
       if (i > 0 && i < stops.length - 1) {
-        if (s.minutes == null) guess = true;
-        t += (s.minutes || 0) * 60000;
+        if (s.type === 'stay') {
+          if (s.leaveOn) {
+            var on = new Date(s.leaveOn).getTime();
+            if (!depart) depart = new Date(on); // no Leave set: count days from this Leave on
+            // A stored Leave on can fall behind the arrival when something earlier changes
+            var late = e.arrival != null && on < e.arrival;
+            e.stayErr.textContent = late ? stayErrText(e.arrival, depart) : '';
+            e.stayErr.hidden = !late;
+            t = on;
+            unset = false;
+            guess = false;      // the times restart from a fixed Leave on
+          } else {
+            e.stayErr.hidden = true;
+            t = null;
+            unset = true;
+          }
+        } else {
+          if (s.minutes == null) guess = true;
+          if (t != null) t += (s.minutes || 0) * 60000;
+        }
       }
-      if (e.leave) e.leave.textContent = depart ? 'Leave ' + clock(new Date(t), depart) : '';
+      if (e.leave) e.leave.textContent = t != null ? 'Leave ' + clock(new Date(t), depart) : '';
     });
+    save(); // every change (route, type, minutes, Leave on, Leave) ends here
   }
 
   leaveInput.addEventListener('input', updateTimes);
@@ -308,6 +368,52 @@
     return { label: wrap, err: err };
   }
 
+  // The "Leave on" field on a Stay
+  function leaveOnField(s, i) {
+    var wrap = el('label', 'mins');
+    wrap.appendChild(document.createTextNode('Leave on '));
+    var input = el('input');
+    input.type = 'datetime-local';
+    input.value = s.leaveOn || '';
+    wrap.appendChild(input);
+    var err = el('p', 'err');
+    err.hidden = true;
+
+    input.addEventListener('input', function () {
+      var arrival = timeEls[i].arrival;
+      if (input.value && arrival != null && new Date(input.value).getTime() < arrival) {
+        input.setAttribute('aria-invalid', 'true');
+        err.textContent = stayErrText(arrival, timeEls[i].day);
+        err.hidden = false;
+        return; // times keep their last valid values
+      }
+      input.removeAttribute('aria-invalid');
+      s.leaveOn = input.value || null;
+      updateTimes();
+    });
+    return { label: wrap, err: err };
+  }
+
+  // Stay / Quick stop pills. obj.type is set on click, then onChange runs.
+  function typePills(obj, onChange) {
+    var group = el('div', 'chips');
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', 'Stop type');
+    [['stay', 'Stay'], ['quick', 'Quick stop']].forEach(function (t) {
+      var c = el('button', 'chip', t[1]);
+      c.type = 'button';
+      c.dataset.type = t[0];
+      c.setAttribute('aria-pressed', String(obj.type === t[0]));
+      c.addEventListener('click', function () {
+        obj.type = t[0];
+        group.querySelectorAll('.chip').forEach(function (b) { b.setAttribute('aria-pressed', String(b === c)); });
+        onChange();
+      });
+      group.appendChild(c);
+    });
+    return group;
+  }
+
   function render() {
     routeEl.replaceChildren();
     timeEls = [];
@@ -324,9 +430,18 @@
     stops.forEach(function (s, i) {
       var card = el('article', 'stop');
       card.appendChild(el('span', 'num', String(i + 1)));
-      card.appendChild(el('h3', null, s.name));
+      card.appendChild(el('h3', null, s.region ? s.name + ', ' + s.region : s.name));
 
       var middle = i > 0 && i < stops.length - 1;
+      var stay = middle && s.type === 'stay';
+      if (middle) {
+        // Switching type redraws the cards (no OSRM call) and keeps focus on the pill
+        card.appendChild(typePills(s, function () {
+          render();
+          var b = routeEl.querySelectorAll('.stop')[i].querySelector('.chip[data-type="' + s.type + '"]');
+          if (b) b.focus();
+        }));
+      }
       var meta = el('div', 'meta');
       var e = {};
       if (i > 0) {
@@ -338,9 +453,10 @@
         arr.appendChild(e.arrive);
         meta.appendChild(arr);
       }
-      var mins = middle ? minutesField(s, i) : null;
+      var mins = middle ? (stay ? leaveOnField(s, i) : minutesField(s, i)) : null;
       if (mins) meta.appendChild(mins.label);
-      if (i < stops.length - 1) {
+      if (stay) e.stayErr = mins.err;
+      if (i < stops.length - 1 && !stay) {
         e.leave = el('span');
         meta.appendChild(e.leave);
       }
@@ -365,6 +481,11 @@
         var mid = el('div', 'mid');
         var label = el('div', 'label');
         label.appendChild(el('b', null, duration(legs[i].duration) + ' · ' + miles(legs[i].distance)));
+        var a = el('a', null, 'Open this leg in Google Maps ↗');
+        a.href = legUrl(s, stops[i + 1]);
+        a.target = '_blank';
+        a.rel = 'noopener';
+        label.appendChild(a);
         mid.appendChild(label);
         var plus = el('button', 'plus', '+');
         plus.type = 'button';
@@ -382,8 +503,69 @@
         if (openLeg === i) routeEl.appendChild(addCard(i));
       }
     });
+    routeLink.href = routeMapsUrl();
+    routeLink.hidden = false;
     updateTimes();
   }
+
+  // ---------- Google Maps links ----------
+
+  var MAPS_URL = 'https://www.google.com/maps/dir/?api=1&travelmode=driving';
+  var routeLink = document.getElementById('routeLink');
+
+  function ll(s) { return s.lat + ',' + s.lon; }
+
+  function legUrl(a, b) {
+    return MAPS_URL + '&origin=' + encodeURIComponent(ll(a)) + '&destination=' + encodeURIComponent(ll(b));
+  }
+
+  function routeMapsUrl() {
+    var url = legUrl(stops[0], stops[stops.length - 1]);
+    var mid = stops.slice(1, -1).map(ll);
+    if (mid.length) url += '&waypoints=' + encodeURIComponent(mid.join('|'));
+    return url;
+  }
+
+  // ---------- Saving the trip (localStorage) ----------
+
+  var SAVE_KEY = 'roadTrip';
+
+  function save() {
+    if (stops.length < 2) return; // nothing to save yet, and never overwrite a trip still being restored
+    var trip = {
+      leave: leaveInput.value,
+      stops: stops.map(function (s) {
+        return { name: s.name, region: s.region, label: s.label, lat: s.lat, lon: s.lon, type: s.type, minutes: s.minutes, leaveOn: s.leaveOn };
+      })
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(trip)); } catch (e) { /* storage blocked: the trip just isn't saved */ }
+  }
+
+  function load() {
+    try {
+      var trip = JSON.parse(localStorage.getItem(SAVE_KEY));
+      if (!trip || !Array.isArray(trip.stops) || trip.stops.length < 2) return null;
+      var ok = trip.stops.every(function (s) { return typeof s.lat === 'number' && typeof s.lon === 'number' && typeof s.name === 'string'; });
+      return ok ? trip : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function newTrip() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* nothing saved to clear */ }
+    stops = [];
+    legs = [];
+    total = { distance: 0, duration: 0 };
+    openLeg = -1;
+    routeEl.replaceChildren();
+    routeLink.hidden = true;
+    start.set(null);
+    dest.set(null);
+    leaveInput.value = '';
+  }
+
+  document.getElementById('newTrip').addEventListener('click', newTrip);
 
   document.getElementById('tripForm').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -393,4 +575,13 @@
     // Keep any stops already added between start and destination
     fetchRoute([start.picked].concat(stops.slice(1, -1), [dest.picked]));
   });
+
+  // On page load, bring back a saved trip and route it again
+  var saved = load();
+  if (saved) {
+    leaveInput.value = saved.leave || '';
+    start.set(saved.stops[0]);
+    dest.set(saved.stops[saved.stops.length - 1]);
+    fetchRoute(saved.stops);
+  }
 })();
