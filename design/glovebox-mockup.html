@@ -1,0 +1,540 @@
+<title>Glovebox Road Trip</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout concept: two screens. 1) A pencil-sketch cab of a 1980s 4x4, with a folded map on the dash.
+   2) The map unfolded: a road with the truck across the top, stop cards zig-zagging down the middle,
+   mountains and rivers sketched down both edges. One visual world (paper + graphite), so single theme. */
+:root {
+  color-scheme: light;
+  --paper: #f4f2ec;        /* drawing paper */
+  --paper-2: #e9e5da;      /* map sheet, slightly darker */
+  --graphite: #2a2826;     /* pencil line + body text */
+  --graphite-soft: #6d6a63;/* secondary pencil */
+  --truck-red: #c7361f;    /* body paint */
+  --velour: #b0946a;       /* cab interior: saddle tan */
+  --stripe-gold: #d49b1a;  /* side-stripe accent, used for highlights */
+  --river: #4f7891;        /* water */
+  --pine: #4c5a3a;         /* ridgelines */
+  --warn: #b5481b;         /* warnings */
+  --font-display: Impact, "Haettenschweiler", "Arial Narrow Bold", "Helvetica Neue", Arial, sans-serif;
+  --font-hand: "Bradley Hand", "Segoe Print", "Chalkboard SE", "Marker Felt", cursive;
+  --font-body: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-data: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --space: 8px;
+  --radius: 3px;
+}
+body { background: var(--paper); color: var(--graphite); font-family: var(--font-body); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: calc(var(--space)*3); max-width: 1180px; margin: 0 auto; }
+.note { font-family: var(--font-hand); color: var(--graphite-soft); font-size: 15px; }
+
+/* Header, in the spirit of a big outdoor-brand adventure page */
+.mast { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: calc(var(--space)*2); border-bottom: 2px solid var(--graphite); padding-bottom: calc(var(--space)*2); }
+.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--graphite-soft); }
+h1 { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(36px, 7vw, 76px); line-height: .92; letter-spacing: .01em; margin: 6px 0 0; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--truck-red); }
+.stripes { display: flex; flex-direction: column; gap: 3px; width: 120px; }
+.stripes i { display: block; height: 4px; background: var(--stripe-gold); transform: skewX(-35deg); }
+.stripes i:nth-child(2) { background: var(--truck-red); }
+.stripes i:nth-child(3) { background: var(--graphite); }
+
+/* State switcher (design reference only) */
+.states { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: calc(var(--space)*2); }
+.states span { font-family: var(--font-data); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--graphite-soft); margin-right: 4px; }
+.states button { font: 600 13px var(--font-body); background: transparent; border: 1.5px solid var(--graphite); color: var(--graphite); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.states button[aria-pressed="true"] { background: var(--graphite); color: var(--paper); }
+button:focus-visible, .map-folded:focus-visible { outline: 3px solid var(--stripe-gold); outline-offset: 3px; }
+
+/* ---------- Screen 1: the cab ---------- */
+.cab { margin-top: calc(var(--space)*3); position: relative; }
+.cab svg { width: 100%; height: auto; display: block; }
+.cab-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.map-folded { cursor: pointer; }
+.map-folded:hover .fold-paper { fill: #fbf8ef; }
+.map-folded .pulse { animation: pulse 2.4s ease-in-out infinite; transform-origin: 905px 352px; }
+@keyframes pulse { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+
+/* ---------- Screen 2: the open map ---------- */
+.sheet { margin-top: calc(var(--space)*3); background: var(--paper-2); border: 1.5px solid var(--graphite); position: relative; overflow: hidden;
+  background-image:
+    linear-gradient(90deg, transparent calc(33.33% - 1px), rgba(42,40,38,.12) 33.33%, transparent calc(33.33% + 1px), transparent calc(66.66% - 1px), rgba(42,40,38,.12) 66.66%, transparent calc(66.66% + 1px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), rgba(42,40,38,.10) 50%, transparent calc(50% + 1px));
+  transform-origin: top center; }
+.sheet.opening { animation: unfold .7s cubic-bezier(.2,.8,.2,1); }
+@keyframes unfold { from { transform: perspective(900px) rotateX(-70deg) scaleY(.3); opacity: 0 } to { transform: none; opacity: 1 } }
+.road { position: relative; height: 120px; border-bottom: 1.5px solid var(--graphite); }
+.road svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.truck { position: absolute; left: 3%; bottom: 22px; width: 150px; transition: left .6s; }
+.loading .truck { animation: drive 2.2s linear infinite; }
+@keyframes drive { from { left: -12% } to { left: 100% } }
+
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px 16px; padding: 16px max(16px, 4%); border-bottom: 1.5px dashed var(--graphite-soft); }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-family: var(--font-data); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--graphite-soft); }
+.field input { font: 600 15px var(--font-body); color: var(--graphite); background: var(--paper); border: 1.5px solid var(--graphite); border-radius: var(--radius); padding: 7px 9px; min-width: 0; }
+.field input[aria-invalid="true"] { border-color: var(--warn); box-shadow: 0 0 0 2px rgba(181,72,27,.2); }
+.field .err { font-family: var(--font-hand); color: var(--warn); font-size: 14px; }
+
+.terrain { position: relative; padding: 24px 0 40px; }
+.edge { position: absolute; top: 0; bottom: 0; width: 17%; pointer-events: none; }
+.edge.left { left: 0 } .edge.right { right: 0; transform: scaleX(-1) }
+.edge svg { width: 100%; height: 100%; }
+.route { position: relative; z-index: 1; width: min(560px, 64%); margin: 0 auto; display: flex; flex-direction: column; }
+
+.summary { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; font-family: var(--font-data); font-size: 13px; margin-bottom: 18px; text-align: center; }
+.summary b { font-family: var(--font-display); font-weight: 400; font-size: 26px; display: block; letter-spacing: .02em; }
+.day { font-family: var(--font-display); text-transform: uppercase; font-size: 22px; letter-spacing: .04em; display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; }
+.day::after { content: ""; flex: 1; border-top: 2px solid var(--graphite); }
+.day small { font-family: var(--font-data); font-size: 12px; letter-spacing: 0; color: var(--graphite-soft); }
+.day.over small { color: var(--warn); font-weight: 700; }
+
+.stop { width: 68%; background: var(--paper); border: 1.8px solid var(--graphite); border-radius: var(--radius); padding: 10px 12px; box-shadow: 3px 3px 0 var(--graphite); position: relative; }
+.stop:nth-of-type(even) { align-self: flex-end; transform: rotate(.6deg); }
+.stop:nth-of-type(odd) { align-self: flex-start; transform: rotate(-.6deg); }
+.stop h3 { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 21px; letter-spacing: .03em; margin: 0; }
+.stop .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--font-data); font-size: 12.5px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.stop .wx { font-family: var(--font-hand); font-size: 14px; color: var(--river); margin-top: 4px; }
+.stop .num { position: absolute; top: -12px; right: -10px; width: 26px; height: 26px; border-radius: 50%; background: var(--truck-red); color: var(--paper); font: 400 15px/26px var(--font-display); text-align: center; }
+
+.leg { display: flex; align-items: center; gap: 8px; height: 74px; position: relative; }
+.leg svg { position: absolute; left: 18%; width: 64%; height: 100%; overflow: visible; }
+.leg .label { position: relative; margin: 0 auto; background: var(--paper-2); padding: 2px 8px; font-family: var(--font-hand); font-size: 17px; text-align: center; line-height: 1.2; }
+.leg .label b { font-family: var(--font-data); font-size: 13px; font-weight: 700; display: block; }
+.gas { display: inline-block; margin-top: 2px; font-family: var(--font-data); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--paper); background: var(--warn); padding: 1px 6px; border-radius: 2px; }
+
+/* Add-stop: a "+" pin on every leg, opening a note card in that gap */
+.plus { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px dashed var(--graphite); background: var(--paper); color: var(--graphite); font: 400 22px/1 var(--font-display); cursor: pointer; z-index: 2; }
+.plus:hover, .plus[aria-expanded="true"] { background: var(--stripe-gold); border-style: solid; }
+.leg .mid { position: relative; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+.leg .mid .label { margin: 0; }
+.addcard { align-self: center; width: 84%; background: #fffdf6; border: 2px dashed var(--graphite); border-radius: var(--radius); padding: 12px 14px 14px; margin: 4px 0 10px; transform: rotate(-.4deg); display: flex; flex-direction: column; gap: 8px; }
+.addcard h4 { margin: 0; font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 17px; letter-spacing: .03em; }
+.addcard label { font-family: var(--font-data); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--graphite-soft); }
+.addcard input { font: 600 15px var(--font-body); color: var(--graphite); background: var(--paper); border: 1.5px solid var(--graphite); border-radius: var(--radius); padding: 7px 9px; min-width: 0; }
+.results, .chips, .addrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick, .chip { font: 600 13px var(--font-body); background: transparent; color: var(--graphite); border: 1.5px solid var(--graphite); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+.pick[aria-pressed="true"], .chip[aria-pressed="true"] { background: var(--graphite); color: var(--paper); }
+.hint { margin: 0; font-family: var(--font-hand); color: var(--graphite-soft); font-size: 15px; }
+.addcard .err { margin: 0; font-family: var(--font-hand); color: var(--warn); font-size: 15px; }
+.btn-solid { font: 600 14px var(--font-body); background: var(--truck-red); color: var(--paper); border: 0; border-radius: var(--radius); padding: 8px 16px; cursor: pointer; }
+.remove { position: absolute; bottom: 6px; right: 8px; width: 24px; height: 24px; border: 0; background: transparent; color: var(--graphite-soft); font-size: 20px; line-height: 1; cursor: pointer; }
+.remove:hover { color: var(--warn); }
+.stop.new { box-shadow: 3px 3px 0 var(--stripe-gold); border-color: var(--stripe-gold); }
+.stop.new::before { content: "new stop"; position: absolute; top: -11px; left: 10px; background: var(--stripe-gold); color: var(--graphite); font: 700 10px var(--font-data); text-transform: uppercase; letter-spacing: .1em; padding: 2px 6px; }
+
+.panel { text-align: center; padding: 32px 12px; font-family: var(--font-hand); font-size: 20px; }
+.panel h2 { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 30px; margin: 0 0 6px; font-family: var(--font-display); }
+.panel.error h2 { color: var(--warn); }
+.panel button { margin-top: 12px; font: 600 14px var(--font-body); background: var(--graphite); color: var(--paper); border: 0; border-radius: var(--radius); padding: 8px 16px; cursor: pointer; }
+
+.sheet-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 12px max(16px, 4%); border-top: 1.5px solid var(--graphite); }
+.sheet-foot a { color: var(--graphite); font-weight: 600; }
+.btn-ghost { font: 600 14px var(--font-body); background: transparent; border: 1.5px solid var(--graphite); color: var(--graphite); border-radius: var(--radius); padding: 7px 14px; cursor: pointer; }
+
+.brief { margin-top: calc(var(--space)*4); display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+.brief div { min-width: 0; }
+.brief h4 { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 18px; letter-spacing: .04em; margin: 0 0 4px; }
+.brief p { margin: 0; line-height: 1.5; max-width: 60ch; }
+
+@media (max-width: 640px) {
+  .edge { width: 12%; opacity: .6 }
+  .route { width: 80%; }
+  .stop { width: 88%; }
+  .truck { width: 110px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet.opening, .loading .truck, .map-folded .pulse { animation: none; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="pencil"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
+    <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="7" stroke="#2a2826" stroke-width="1" opacity=".22"/></pattern>
+    <pattern id="velour" width="10" height="5" patternUnits="userSpaceOnUse"><line x1="0" y1="2.5" x2="10" y2="2.5" stroke="#5f4a2e" stroke-width="1" opacity=".45"/></pattern>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <div class="eyebrow">Road trip planner · design sketch for MP3</div>
+      <h1>Every leg.<br><em>Not just the total.</em></h1>
+    </div>
+    <div class="stripes" aria-hidden="true"><i></i><i></i><i></i></div>
+  </header>
+
+  <div class="states" role="group" aria-label="Preview a page state">
+    <span>Preview state</span>
+    <button type="button" data-state="empty" aria-pressed="true">Empty (cab)</button>
+    <button type="button" data-state="loading">Loading</button>
+    <button type="button" data-state="error">Error</button>
+    <button type="button" data-state="invalid">Invalid input</button>
+    <button type="button" data-state="inuse">In use</button>
+  </div>
+
+  <!-- SCREEN 1: the cab -->
+  <section class="cab" id="cab" aria-label="Truck cab">
+    <svg viewBox="0 0 1200 640" role="img" aria-label="Pencil sketch of a 1980s 4x4 cab with a folded road map on the dashboard">
+      <!-- windshield view -->
+      <rect x="0" y="0" width="1200" height="640" fill="#f4f2ec"/>
+      <g filter="url(#pencil)" fill="none" stroke="#2a2826" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M60 40 Q600 10 1140 40 L1110 250 Q600 230 90 250 Z" stroke-width="3"/>
+        <polyline points="90,205 210,130 290,170 400,95 520,160 610,120 700,170 820,105 930,165 1040,125 1110,190" stroke="#4c5a3a" stroke-width="2"/>
+        <polyline points="150,215 260,170 360,200 470,150 560,195" stroke="#4c5a3a" stroke-width="1.4" opacity=".7"/>
+        <polyline points="700,200 800,160 900,195 1000,165 1080,205" stroke="#4c5a3a" stroke-width="1.4" opacity=".7"/>
+        <path d="M600 160 L470 250 M600 160 L730 250" stroke-width="2"/>
+        <path d="M600 175 L600 186 M600 200 L600 214 M600 228 L600 246" stroke="#d49b1a" stroke-width="3"/>
+        <path d="M120 238 Q300 225 470 236" stroke="#4f7891" stroke-width="1.6"/>
+        <!-- wipers -->
+        <path d="M250 248 L520 205 M700 248 L960 210" stroke-width="2.5"/>
+      </g>
+
+      <!-- dashboard -->
+      <g filter="url(#pencil)" stroke="#2a2826" stroke-linejoin="round">
+        <path d="M0 250 Q600 222 1200 250 L1200 400 Q600 380 0 400 Z" fill="#b0946a" stroke-width="3"/>
+        <path d="M0 250 Q600 222 1200 250 L1200 400 Q600 380 0 400 Z" fill="url(#hatch)" stroke="none"/>
+        <!-- instrument cluster -->
+        <rect x="120" y="262" width="330" height="110" rx="14" fill="#2a2826" stroke-width="3"/>
+        <g fill="none" stroke="#f4f2ec" stroke-width="1.6">
+          <circle cx="200" cy="318" r="34"/><circle cx="295" cy="318" r="40"/><circle cx="390" cy="318" r="34"/>
+          <path d="M200 318 L222 300 M295 318 L270 290 M390 318 L410 330"/>
+        </g>
+        <!-- inclinometer pod (center top) -->
+        <path d="M520 262 L540 222 L700 222 L720 262 Z" fill="#b0946a" stroke-width="3"/>
+        <rect x="548" y="230" width="144" height="28" rx="4" fill="#2a2826"/>
+        <g fill="none" stroke="#d49b1a" stroke-width="1.6"><path d="M560 252 Q585 234 610 252"/><path d="M632 252 Q657 234 682 252"/></g>
+        <!-- vents -->
+        <g fill="#2a2826"><rect x="520" y="275" width="70" height="40" rx="5"/><rect x="610" y="275" width="70" height="40" rx="5"/><rect x="1090" y="270" width="80" height="40" rx="5"/></g>
+        <g stroke="#b0946a" stroke-width="2"><path d="M528 287 H582 M528 297 H582 M528 307 H582 M618 287 H672 M618 297 H672 M618 307 H672 M1098 282 H1162 M1098 292 H1162 M1098 302 H1162"/></g>
+        <!-- radio -->
+        <rect x="520" y="325" width="160" height="38" rx="4" fill="#2a2826"/>
+        <rect x="545" y="335" width="80" height="18" fill="#4f7891" opacity=".8"/>
+        <!-- glovebox -->
+        <rect x="760" y="300" width="300" height="70" rx="8" fill="none" stroke-width="2.4"/>
+        <circle cx="1020" cy="335" r="9" fill="none" stroke-width="2"/>
+      </g>
+
+      <!-- steering wheel -->
+      <g filter="url(#pencil)" stroke="#2a2826" fill="none" stroke-linecap="round">
+        <circle cx="285" cy="470" r="175" stroke="#3b3632" stroke-width="22"/>
+        <circle cx="285" cy="470" r="175" stroke-width="2"/>
+        <path d="M285 470 L130 520 M285 470 L440 520 M285 470 L285 640" stroke="#3b3632" stroke-width="16"/>
+        <rect x="215" y="425" width="140" height="80" rx="18" fill="#b0946a" stroke-width="2.4"/>
+        <rect x="248" y="452" width="74" height="22" rx="3" fill="#f4f2ec" stroke-width="1.2"/>
+        <text x="285" y="468" text-anchor="middle" font-family="Impact, Arial Narrow Bold, sans-serif" font-size="14" fill="#2a2826" stroke="none" letter-spacing="2">4 X 4</text>
+      </g>
+
+      <!-- console + shifter (your sketch: the stick in the middle) -->
+      <g filter="url(#pencil)" stroke="#2a2826" stroke-linecap="round">
+        <path d="M540 400 L680 400 L720 640 L500 640 Z" fill="#8f7552" stroke-width="2.4"/>
+        <path d="M600 560 Q585 500 605 450" fill="none" stroke-width="7"/>
+        <circle cx="607" cy="440" r="20" fill="#b0946a" stroke-width="2.4"/>
+        <text x="607" y="445" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-size="10" fill="#f4f2ec" stroke="none">1 3 5</text>
+        <path d="M640 560 Q640 520 652 500" fill="none" stroke-width="5"/>
+        <rect x="642" y="482" width="18" height="24" rx="6" fill="#b0946a" stroke-width="2"/>
+      </g>
+
+      <!-- seats (bottom right, from your sketch) -->
+      <g filter="url(#pencil)" stroke="#2a2826" stroke-width="2.4">
+        <path d="M770 640 L780 470 Q785 430 830 428 L1020 428 Q1060 430 1062 470 L1070 640 Z" fill="#b0946a"/>
+        <path d="M770 640 L780 470 Q785 430 830 428 L1020 428 Q1060 430 1062 470 L1070 640 Z" fill="url(#velour)"/>
+        <path d="M850 440 L845 640 M990 440 L995 640" fill="none" opacity=".6"/>
+        <path d="M0 640 L10 560 Q15 530 50 528 L80 528" fill="#b0946a"/>
+      </g>
+
+      <!-- THE FOLDED MAP: the one thing to click -->
+      <g class="map-folded" id="openMap" role="button" tabindex="0" aria-label="Open the map to plan your trip">
+        <circle class="pulse" cx="905" cy="352" r="96" fill="none" stroke="#c7361f" stroke-width="4" stroke-dasharray="10 8"/>
+        <g transform="rotate(-8 905 352)" filter="url(#pencil)">
+          <rect class="fold-paper" x="830" y="300" width="150" height="105" fill="#f4f2ec" stroke="#2a2826" stroke-width="2.4"/>
+          <path d="M880 300 L880 405 M930 300 L930 405 M830 352 L980 352" stroke="#2a2826" stroke-width="1.2" opacity=".5"/>
+          <path d="M845 390 Q870 330 895 365 T950 320 T972 312" fill="none" stroke="#c7361f" stroke-width="3" stroke-dasharray="7 5"/>
+          <path d="M840 330 Q860 318 880 328" fill="none" stroke="#4f7891" stroke-width="2"/>
+          <text x="905" y="296" text-anchor="middle" font-family="Impact, Arial Narrow Bold, sans-serif" font-size="18" fill="#2a2826" letter-spacing="1">ROAD MAP</text>
+        </g>
+        <text x="905" y="470" text-anchor="middle" font-family="Bradley Hand, Segoe Print, cursive" font-size="22" fill="#2a2826">open the map</text>
+      </g>
+    </svg>
+    <div class="cab-caption">
+      <span class="note">Your sketch 1: dashboard on top, stick in the middle, folded map on the passenger side, seats below.</span>
+      <span class="note">Click the map (or press Enter on it).</span>
+    </div>
+  </section>
+
+  <!-- SCREEN 2: the open map -->
+  <section class="sheet" id="sheet" aria-label="Trip map" hidden>
+    <div class="road" aria-hidden="true">
+      <svg viewBox="0 0 1000 120" preserveAspectRatio="none">
+        <g filter="url(#pencil)" fill="none" stroke="#2a2826">
+          <polyline points="0,62 90,40 160,55 250,22 330,48 420,30 520,58 600,26 690,50 780,20 870,46 1000,30" stroke="#4c5a3a" stroke-width="1.6" opacity=".7"/>
+          <path d="M0 96 H1000" stroke-width="2.4"/>
+          <path d="M0 108 H1000" stroke-width="1.2" stroke-dasharray="16 12" opacity=".7"/>
+        </g>
+      </svg>
+      <!-- first-gen style 4x4, side view -->
+      <svg class="truck" viewBox="0 0 220 90" role="img" aria-label="Red 4x4 truck">
+        <g filter="url(#pencil)" stroke="#2a2826" stroke-width="2" stroke-linejoin="round">
+          <path d="M14 58 L14 38 Q16 30 26 30 L120 30 L120 12 Q122 8 128 8 L160 8 Q166 9 172 18 L186 34 L204 38 Q210 40 210 48 L210 62 L14 62 Z" fill="#c7361f"/>
+          <path d="M14 30 L14 14 Q15 8 22 8 L120 8 L120 30 Z" fill="#2a2826"/>
+          <path d="M128 12 L158 12 L176 32 L128 32 Z" fill="#9fb3bf"/>
+          <path d="M60 12 L112 12 L112 28 L60 28 Z M24 12 L54 12 L54 28 L24 28 Z" fill="#6d6a63"/>
+          <path d="M18 44 L206 44 M18 49 L206 49" stroke="#d49b1a" stroke-width="2.4"/>
+          <circle cx="58" cy="64" r="17" fill="#2a2826"/><circle cx="58" cy="64" r="8" fill="#e9e5da"/>
+          <circle cx="170" cy="64" r="17" fill="#2a2826"/><circle cx="170" cy="64" r="8" fill="#e9e5da"/>
+        </g>
+      </svg>
+    </div>
+
+    <form class="controls" id="tripForm" novalidate>
+      <div class="field"><label for="from">Start</label><input id="from" value="Dallas, TX"></div>
+      <div class="field"><label for="to">Destination</label><input id="to" value="Boston, MA"><span class="err" id="toErr" hidden>Add a destination first</span></div>
+      <div class="field"><label for="leave">Leave</label><input id="leave" value="Fri Dec 18, 7:00 AM"></div>
+      <div class="field"><label for="limit">Max drive / day</label><input id="limit" value="9 h"></div>
+      <div class="field"><label for="mpg">MPG</label><input id="mpg" value="17"></div>
+      <div class="field"><label for="tank">Tank (gal)</label><input id="tank" value="17.2"></div>
+    </form>
+
+    <div class="terrain">
+      <div class="edge left" aria-hidden="true">
+        <svg viewBox="0 0 120 900" preserveAspectRatio="none"><g filter="url(#pencil)" fill="none" stroke-linecap="round">
+          <polyline points="0,40 40,70 20,120 70,160 30,220 80,270 25,330 60,380 15,430 75,490 30,540 70,600 20,650 65,710 25,770 70,830 10,890" stroke="#2a2826" stroke-width="2"/>
+          <polyline points="0,90 20,130 0,180 30,250 0,310 25,370 0,420" stroke="#4c5a3a" stroke-width="1.4" opacity=".7"/>
+          <path d="M100 0 Q80 120 108 220 T96 440 T110 660 T92 900" stroke="#4f7891" stroke-width="2.2"/>
+          <path d="M40 470 l10 -18 l10 18 M50 452 v26 M15 560 l10 -18 l10 18 M25 542 v26 M45 690 l10 -18 l10 18 M55 672 v26" stroke="#4c5a3a" stroke-width="1.6"/>
+        </g></svg>
+      </div>
+      <div class="edge right" aria-hidden="true">
+        <svg viewBox="0 0 120 900" preserveAspectRatio="none"><g filter="url(#pencil)" fill="none" stroke-linecap="round">
+          <polyline points="0,20 50,60 15,110 80,150 35,200 95,260 40,320 85,370 20,440 70,500 35,560 90,620 30,680 75,740 20,800 60,860 0,900" stroke="#2a2826" stroke-width="2"/>
+          <polyline points="0,60 25,110 0,170 35,230 0,280" stroke="#4c5a3a" stroke-width="1.4" opacity=".7"/>
+          <path d="M106 0 Q90 160 112 300 T98 560 T112 900" stroke="#4f7891" stroke-width="2.2"/>
+          <path d="M30 380 l10 -18 l10 18 M40 362 v26 M55 600 l10 -18 l10 18 M65 582 v26" stroke="#4c5a3a" stroke-width="1.6"/>
+        </g></svg>
+      </div>
+      <div class="route" id="route" aria-live="polite"></div>
+    </div>
+
+    <div class="sheet-foot">
+      <a href="https://www.google.com/maps/dir/?api=1&amp;origin=Dallas+TX&amp;destination=Boston+MA&amp;waypoints=Little+Rock+AR%7CNashville+TN%7CRoanoke+VA%7CNew+York+NY" target="_blank" rel="noopener">Open this route in Google Maps ↗</a>
+      <button type="button" class="btn-ghost" id="foldMap">Fold the map</button>
+    </div>
+  </section>
+
+  <section class="brief" aria-label="Design notes">
+    <div><h4>Palette</h4><p>Pencil on drawing paper, plus the truck's own colors: body red, saddle-tan cloth and charcoal from the cab, and the gold side stripe used only for highlights. Blue only for water and weather.</p></div>
+    <div><h4>Type</h4><p>Big condensed capitals for names and headings (the adventure-site feel), handwriting for things you'd scribble on a map (leg times, weather), monospace for numbers.</p></div>
+    <div><h4>Adding stops</h4><p>Every leg has a dashed + pin. It opens a note card right in that gap: search a town, pick how long you stay, add it. The leg splits in two and every time below it updates. Middle stops get a small × to remove them.</p></div>
+    <div><h4>Motion</h4><p>One moment only: the map unfolds when you click it. While a route loads, the truck drives across the road at the top.</p></div>
+    <div><h4>Phone</h4><p>The cab scales down as one picture. On the map, the stop cards widen, the zig-zag stays, and the mountains thin to narrow strips at the edges.</p></div>
+  </section>
+  <p class="note">Example trip for the sketch only (Dallas to Boston). Times and miles are rounded placeholders, not API results.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // Example data for the sketch. In the real app: names + coordinates from Open-Meteo Geocoding,
+  // leg minutes/miles from OSRM routes[0].legs, weather from Open-Meteo Forecast.
+  var START_MIN = 7 * 60;          // leave Fri 7:00 AM
+  var DAY_LIMIT = 9 * 60;          // max drive per day (minutes)
+  var MPG = 17, TANK = 17.2, PRICE = 3.08, PEOPLE = 3;
+  var SAFE_RANGE = Math.round(MPG * TANK * 0.75); // fill up with a quarter tank left
+
+  var stops = [
+    { name: 'Dallas, TX', stay: 0, wx: 'clear, 41°F' },
+    { name: 'Little Rock, AR', stay: 60, label: 'lunch', wx: 'cloudy, 52°F' },
+    { name: 'Nashville, TN', stay: 'night', wx: 'rain 60%, 47°F' },
+    { name: 'Roanoke, VA', stay: 45, wx: 'clear, 39°F' },
+    { name: 'New York, NY', stay: 'night', wx: 'snow 40%, 31°F' },
+    { name: 'Boston, MA', stay: 0, wx: 'cloudy, 35°F' }
+  ];
+  var legs = [
+    { min: 285, miles: 319 }, { min: 305, miles: 355 }, { min: 360, miles: 410 },
+    { min: 410, miles: 420 }, { min: 230, miles: 215 }
+  ];
+  // Pretend geocoding results for the sketch: places that sit on each leg, and how far along they are.
+  var PLACES = [
+    { name: 'Texarkana, AR', f: .55, wx: 'clear, 49°F' }, { name: 'Tyler, TX', f: .3, wx: 'clear, 46°F' },
+    { name: 'Memphis, TN', f: .4, wx: 'cloudy, 50°F' }, { name: 'Jackson, TN', f: .62, wx: 'rain 30%, 48°F' },
+    { name: 'Knoxville, TN', f: .44, wx: 'cloudy, 44°F' }, { name: 'Bristol, VA', f: .72, wx: 'clear, 40°F' },
+    { name: 'Harrisburg, PA', f: .55, wx: 'cloudy, 36°F' }, { name: 'Philadelphia, PA', f: .78, wx: 'snow 20%, 33°F' },
+    { name: 'New Haven, CT', f: .35, wx: 'cloudy, 34°F' }, { name: 'Providence, RI', f: .78, wx: 'cloudy, 35°F' }
+  ];
+  var STAYS = [{ v: 15, t: 'Gas · 15 min' }, { v: 60, t: 'Meal · 1 h' }, { v: 'night', t: 'Overnight' }];
+  var openLeg = -1;      // which gap has the add-stop card open
+  var draft = { q: '', place: null, stay: 15, err: '' };
+  var justAdded = -1;
+
+  var route = document.getElementById('route');
+  var sheet = document.getElementById('sheet');
+  var cab = document.getElementById('cab');
+
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function dur(m) { var h = Math.floor(m / 60), r = m % 60; return h + ' h ' + (r < 10 ? '0' : '') + r + ' min'; }
+  function short(m) { var h = Math.floor(m / 60), r = m % 60; return (h ? h + ' h' : '') + (h && r ? ' ' : '') + (r ? r + ' min' : ''); }
+  function clock(t) {
+    var d = ['Fri', 'Sat', 'Sun', 'Mon', 'Tue'][Math.floor(t / 1440)] || '+' + Math.floor(t / 1440) + 'd';
+    var m = t % 1440, h = Math.floor(m / 60), mm = m % 60, ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12; return d + ' ' + h + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ap;
+  }
+
+  // Work out arrival/leave times, days and gas from the stops and legs.
+  function plan() {
+    var t = START_MIN, rows = [], days = [], day = { start: 0, drive: 0 };
+    stops.forEach(function (s, i) {
+      var row = { arrive: null, leave: null };
+      if (i > 0) { t += legs[i - 1].min; row.arrive = t; day.drive += legs[i - 1].min; }
+      if (i < stops.length - 1) {
+        if (s.stay === 'night' && i > 0) {
+          days.push(day); day = { start: i, drive: 0 };
+          t = (Math.floor(t / 1440) + 1) * 1440 + 7 * 60;
+        } else { t += (i > 0 ? s.stay : 0); }
+        row.leave = t;
+      }
+      rows.push(row);
+    });
+    days.push(day);
+    var miles = legs.reduce(function (a, l) { return a + l.miles; }, 0);
+    var drive = legs.reduce(function (a, l) { return a + l.min; }, 0);
+    var gas = Math.round(miles / MPG * PRICE);
+    return { rows: rows, days: days, miles: miles, drive: drive, gas: gas };
+  }
+
+  function arrow(flip) {
+    var ns = 'http://www.w3.org/2000/svg';
+    var s = document.createElementNS(ns, 'svg'); s.setAttribute('viewBox', '0 0 300 74'); s.setAttribute('preserveAspectRatio', 'none'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', flip ? 'M250 4 C230 40 120 30 60 66 M60 66 l18 -2 M60 66 l4 -16' : 'M50 4 C70 40 180 30 240 66 M240 66 l-18 -2 M240 66 l-4 -16');
+    p.setAttribute('fill', 'none'); p.setAttribute('stroke', '#2a2826'); p.setAttribute('stroke-width', '2'); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-dasharray', '6 5');
+    s.appendChild(p); return s;
+  }
+
+  function addCard(i) {
+    var box = el('div', 'addcard');
+    box.appendChild(el('h4', null, 'Add a stop between ' + stops[i].name.split(',')[0] + ' and ' + stops[i + 1].name.split(',')[0]));
+    var lab = el('label', null, 'Town or place'); lab.htmlFor = 'addq'; box.appendChild(lab);
+    var inp = el('input'); inp.id = 'addq'; inp.placeholder = 'Try Memphis or Knoxville'; inp.value = draft.q; inp.autocomplete = 'off';
+    box.appendChild(inp);
+    var list = el('div', 'results'); box.appendChild(list);
+    function fill() {
+      list.replaceChildren();
+      var q = draft.q.trim().toLowerCase();
+      if (!q) { list.appendChild(el('p', 'hint', 'Type a town to search.')); return; }
+      var hits = PLACES.filter(function (p) { return p.name.toLowerCase().indexOf(q) === 0; });
+      if (!hits.length) { list.appendChild(el('p', 'hint', 'No town called “' + draft.q.trim() + '”. Check the spelling.')); return; }
+      hits.forEach(function (p) {
+        var b = el('button', 'pick', p.name); b.type = 'button'; b.setAttribute('aria-pressed', String(draft.place === p));
+        b.addEventListener('click', function () { draft.place = p; draft.q = p.name; draft.err = ''; render(); focusAdd(); });
+        list.appendChild(b);
+      });
+    }
+    inp.addEventListener('input', function () { draft.q = inp.value; draft.place = null; fill(); });
+    fill();
+    var chips = el('div', 'chips'); chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'How long you stay');
+    STAYS.forEach(function (s) {
+      var c = el('button', 'chip', s.t); c.type = 'button'; c.setAttribute('aria-pressed', String(draft.stay === s.v));
+      c.addEventListener('click', function () { draft.stay = s.v; render(); focusAdd(); });
+      chips.appendChild(c);
+    });
+    box.appendChild(chips);
+    if (draft.err) box.appendChild(el('p', 'err', draft.err));
+    var row = el('div', 'addrow');
+    var ok = el('button', 'btn-solid', 'Add stop'); ok.type = 'button';
+    ok.addEventListener('click', function () {
+      if (!draft.place) { draft.err = 'Pick a town from the list first.'; render(); focusAdd(); return; }
+      var leg = legs[i], f = draft.place.f;
+      legs.splice(i, 1, { min: Math.round(leg.min * f), miles: Math.round(leg.miles * f) },
+                        { min: Math.round(leg.min * (1 - f)), miles: Math.round(leg.miles * (1 - f)) });
+      stops.splice(i + 1, 0, { name: draft.place.name, stay: draft.stay, wx: draft.place.wx });
+      justAdded = i + 1; openLeg = -1; draft = { q: '', place: null, stay: 15, err: '' }; render();
+    });
+    var no = el('button', 'btn-ghost', 'Cancel'); no.type = 'button';
+    no.addEventListener('click', function () { openLeg = -1; draft = { q: '', place: null, stay: 15, err: '' }; render(); });
+    row.appendChild(ok); row.appendChild(no); box.appendChild(row);
+    return box;
+  }
+  function focusAdd() { var q = document.getElementById('addq'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
+
+  function render() {
+    var p = plan();
+    route.replaceChildren();
+    var sum = el('div', 'summary');
+    [[p.miles.toLocaleString() + ' mi', 'total'], [dur(p.drive), 'driving'], [p.days.length + ' days', 'at 9 h / day'],
+     ['$' + p.gas, 'gas · $' + Math.round(p.gas / PEOPLE) + ' each for ' + PEOPLE]].forEach(function (x) {
+      var d = el('div'); d.appendChild(el('b', null, x[0])); d.appendChild(document.createTextNode(x[1])); sum.appendChild(d);
+    });
+    route.appendChild(sum);
+    stops.forEach(function (s, i) {
+      p.days.forEach(function (d, k) {
+        if (d.start !== i) return;
+        var over = d.drive > DAY_LIMIT;
+        var h = el('div', 'day' + (over ? ' over' : ''));
+        h.appendChild(document.createTextNode('Day ' + (k + 1) + ' '));
+        h.appendChild(el('small', null, dur(d.drive) + ' driving' + (over ? ' · over your 9 h limit' : '')));
+        route.appendChild(h);
+      });
+      var c = el('article', 'stop' + (i === justAdded ? ' new' : ''));
+      c.appendChild(el('span', 'num', String(i + 1)));
+      c.appendChild(el('h3', null, s.name));
+      var m = el('div', 'meta'), r = p.rows[i];
+      if (r.arrive != null) m.appendChild(el('span', null, 'Arrive ' + clock(r.arrive)));
+      if (i > 0 && i < stops.length - 1) m.appendChild(el('span', null, 'Stay ' + (s.stay === 'night' ? 'overnight' : short(s.stay)) + (s.label ? ' ' + s.label : '')));
+      if (r.leave != null) m.appendChild(el('span', null, 'Leave ' + clock(r.leave)));
+      c.appendChild(m);
+      c.appendChild(el('div', 'wx', (i === 0 ? 'Leaving: ' : 'At arrival: ') + s.wx));
+      if (i > 0 && i < stops.length - 1) {
+        var x = el('button', 'remove', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Remove ' + s.name);
+        x.addEventListener('click', function () {
+          legs.splice(i - 1, 2, { min: legs[i - 1].min + legs[i].min, miles: legs[i - 1].miles + legs[i].miles });
+          stops.splice(i, 1); justAdded = -1; openLeg = -1; render();
+        });
+        c.appendChild(x);
+      }
+      route.appendChild(c);
+      if (legs[i]) {
+        var l = el('div', 'leg'); l.appendChild(arrow(i % 2 === 1));
+        var lab = el('div', 'label'); lab.appendChild(el('b', null, dur(legs[i].min) + ' · ' + legs[i].miles + ' mi'));
+        if (legs[i].miles > SAFE_RANGE) lab.appendChild(el('span', 'gas', 'Fill up halfway'));
+        var mid = el('div', 'mid'); mid.appendChild(lab); l.appendChild(mid);
+        var plus = el('button', 'plus', '+'); plus.type = 'button';
+        plus.setAttribute('aria-label', 'Add a stop between ' + s.name + ' and ' + stops[i + 1].name);
+        plus.setAttribute('aria-expanded', String(openLeg === i));
+        plus.addEventListener('click', function () { openLeg = openLeg === i ? -1 : i; draft = { q: '', place: null, stay: 15, err: '' }; render(); focusAdd(); });
+        mid.appendChild(plus);
+        route.appendChild(l);
+        if (openLeg === i) route.appendChild(addCard(i));
+      }
+    });
+  }
+
+  function panel(cls, title, body, btn) {
+    route.replaceChildren();
+    var p = el('div', 'panel ' + cls); p.appendChild(el('h2', null, title)); p.appendChild(el('div', null, body));
+    if (btn) { var b = el('button', null, btn); b.type = 'button'; b.addEventListener('click', function () { setState('inuse'); }); p.appendChild(b); }
+    route.appendChild(p);
+  }
+
+  function setState(st) {
+    document.querySelectorAll('.states button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.state === st)); });
+    var to = document.getElementById('to'), toErr = document.getElementById('toErr');
+    to.removeAttribute('aria-invalid'); toErr.hidden = true; sheet.classList.remove('loading');
+    if (st === 'empty') { cab.hidden = false; sheet.hidden = true; return; }
+    cab.hidden = true; sheet.hidden = false;
+    if (st === 'inuse') render();
+    if (st === 'loading') { sheet.classList.add('loading'); panel('loading', 'Plotting your route…', 'Finding each stop and timing every leg.'); }
+    if (st === 'error') panel('error', 'Couldn’t reach the route service', 'Check your connection, then try again. Your stops are still here.', 'Try again');
+    if (st === 'invalid') { to.setAttribute('aria-invalid', 'true'); toErr.hidden = false; panel('invalid', 'Where are you headed?', 'Add a destination, and the map will draw the legs.'); }
+  }
+
+  function openMap() { setState('inuse'); sheet.classList.remove('opening'); void sheet.offsetWidth; sheet.classList.add('opening'); }
+  var mapBtn = document.getElementById('openMap');
+  mapBtn.addEventListener('click', openMap);
+  mapBtn.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMap(); } });
+  document.getElementById('foldMap').addEventListener('click', function () { setState('empty'); });
+  document.querySelectorAll('.states button').forEach(function (b) { b.addEventListener('click', function () { setState(b.dataset.state); }); });
+  document.getElementById('tripForm').addEventListener('submit', function (e) { e.preventDefault(); });
+
+  // Opens on the cab (your sketch 1). Click the folded map to open the trip.
+  setState('empty');
+})();
+</script>
