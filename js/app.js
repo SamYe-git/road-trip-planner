@@ -242,8 +242,75 @@
     return box;
   }
 
+  // ---------- Arrival and leave times ----------
+
+  var leaveInput = document.getElementById('leave');
+  var timeEls = [];             // per stop: { arrive, earliest, leave } elements, filled by render()
+
+  // "9:40 AM", or "Sat 1:15 AM" when it's no longer the departure day
+  function clock(d, startDay) {
+    var t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (d.toDateString() === startDay.toDateString()) return t;
+    return d.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + t;
+  }
+
+  // Recalculates every arrival and leave time from Leave, the legs and each stop's minutes.
+  // Only touches the time text, so a minutes field being typed in keeps its focus.
+  function updateTimes() {
+    var depart = leaveInput.value ? new Date(leaveInput.value) : null;
+    var t = depart ? depart.getTime() : 0;
+    var guess = false;          // true once a stop before this one has no minutes yet
+    stops.forEach(function (s, i) {
+      var e = timeEls[i];
+      if (!e) return;
+      if (i > 0) {
+        t += Math.round(legs[i - 1].duration / 60) * 60000; // whole minutes, matching the leg label
+        e.arrive.textContent = depart ? 'Arrive ' + clock(new Date(t), depart) : '';
+        e.earliest.hidden = !(depart && guess);
+      }
+      if (i > 0 && i < stops.length - 1) {
+        if (s.minutes == null) guess = true;
+        t += (s.minutes || 0) * 60000;
+      }
+      if (e.leave) e.leave.textContent = depart ? 'Leave ' + clock(new Date(t), depart) : '';
+    });
+  }
+
+  leaveInput.addEventListener('input', updateTimes);
+
+  // The "min here" field on a middle stop
+  function minutesField(s, i) {
+    var wrap = el('label', 'mins');
+    var input = el('input');
+    input.type = 'number';
+    input.min = '0';
+    input.step = '1';
+    input.inputMode = 'numeric';
+    input.value = s.minutes == null ? '' : String(s.minutes);
+    wrap.appendChild(input);
+    wrap.appendChild(document.createTextNode(' min here'));
+    var err = el('p', 'err', 'Enter minutes as 0 or more.');
+    err.hidden = true;
+
+    input.addEventListener('input', function () {
+      var raw = input.value.trim();
+      var n = Number(raw);
+      if (input.validity.badInput || (raw !== '' && !(n >= 0))) {
+        input.setAttribute('aria-invalid', 'true');
+        err.hidden = false;
+        return; // times keep their last valid values
+      }
+      input.removeAttribute('aria-invalid');
+      err.hidden = true;
+      s.minutes = raw === '' ? null : n;
+      updateTimes();
+    });
+    return { label: wrap, err: err };
+  }
+
   function render() {
     routeEl.replaceChildren();
+    timeEls = [];
 
     var sum = el('div', 'summary');
     [[miles(total.distance), 'total'], [duration(total.duration), 'driving']].forEach(function (x) {
@@ -258,7 +325,30 @@
       var card = el('article', 'stop');
       card.appendChild(el('span', 'num', String(i + 1)));
       card.appendChild(el('h3', null, s.name));
-      if (i > 0 && i < stops.length - 1) {
+
+      var middle = i > 0 && i < stops.length - 1;
+      var meta = el('div', 'meta');
+      var e = {};
+      if (i > 0) {
+        var arr = el('span');
+        e.earliest = el('span', 'earliest', 'earliest');
+        e.earliest.hidden = true;
+        e.arrive = el('span');
+        arr.appendChild(e.earliest);
+        arr.appendChild(e.arrive);
+        meta.appendChild(arr);
+      }
+      var mins = middle ? minutesField(s, i) : null;
+      if (mins) meta.appendChild(mins.label);
+      if (i < stops.length - 1) {
+        e.leave = el('span');
+        meta.appendChild(e.leave);
+      }
+      timeEls[i] = e;
+      card.appendChild(meta);
+      if (mins) card.appendChild(mins.err);
+
+      if (middle) {
         var x = el('button', 'remove', '×');
         x.type = 'button';
         x.setAttribute('aria-label', 'Remove ' + s.name);
@@ -292,6 +382,7 @@
         if (openLeg === i) routeEl.appendChild(addCard(i));
       }
     });
+    updateTimes();
   }
 
   document.getElementById('tripForm').addEventListener('submit', function (e) {

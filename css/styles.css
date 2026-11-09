@@ -90,6 +90,14 @@ h1 em { font-style: normal; color: var(--truck-red); }
 .stop:nth-of-type(even) { align-self: flex-end; transform: rotate(.6deg); }
 .stop:nth-of-type(odd) { align-self: flex-start; transform: rotate(-.6deg); }
 .stop h3 { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 21px; letter-spacing: .03em; margin: 0; overflow-wrap: anywhere; }
+.stop .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-family: var(--font-data); font-size: 12.5px; margin-top: 4px; padding-right: 22px; font-variant-numeric: tabular-nums; }
+.stop .meta:empty { display: none; }
+.stop .earliest { margin-right: 6px; padding: 1px 5px; background: var(--stripe-gold); color: var(--graphite); font: 700 10px var(--font-data); text-transform: uppercase; letter-spacing: .1em; }
+.stop .earliest[hidden] { display: none; }
+.stop .mins { display: inline-flex; align-items: center; gap: 4px; color: var(--graphite-soft); }
+.stop .mins input { width: 6ch; font: 600 13px var(--font-data); color: var(--graphite); background: var(--paper); border: 1.5px solid var(--graphite); border-radius: var(--radius); padding: 2px 4px; }
+.stop .mins input[aria-invalid="true"] { border-color: var(--warn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 20%, transparent); }
+.stop .err { margin: 4px 0 0; font-family: var(--font-hand); color: var(--warn); font-size: 14px; }
 .stop .num { position: absolute; top: -12px; right: -10px; width: 26px; height: 26px; border-radius: 50%; background: var(--truck-red); color: var(--paper); font: 400 15px/26px var(--font-display); text-align: center; }
 
 /* Leg connectors */
