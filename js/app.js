@@ -51,12 +51,10 @@
     return data.results || [];
   }
 
-  // Wires one form field (Start or Destination) to the town search.
-  function townField(id, missingMsg) {
-    var input = document.getElementById(id);
-    var list = document.getElementById(id + 'Results');
-    var err = document.getElementById(id + 'Err');
-    var field = { picked: null, input: input };
+  // Wires an input, its match list and its error line to the town search.
+  // Used by Start, Destination and the add-stop card.
+  function townSearch(input, list, err) {
+    var field = { picked: null };
     var timer = null;
     var latest = 0; // only the newest search may draw its results
 
@@ -114,15 +112,19 @@
       timer = setTimeout(function () { run(q); }, 300);
     });
 
-    field.invalid = function () {
+    field.invalid = function (msg) {
       input.setAttribute('aria-invalid', 'true');
-      showErr(missingMsg);
+      showErr(msg);
     };
     return field;
   }
 
-  var start = townField('from', 'Add a start first');
-  var dest = townField('to', 'Add a destination first');
+  function townField(id) {
+    return townSearch(document.getElementById(id), document.getElementById(id + 'Results'), document.getElementById(id + 'Err'));
+  }
+
+  var start = townField('from');
+  var dest = townField('to');
 
   // ---------- Route (OSRM) ----------
 
@@ -132,6 +134,7 @@
   var stops = [];               // { name, label, lat, lon }
   var legs = [];                // { distance (m), duration (s) }, legs[i] goes from stops[i] to stops[i + 1]
   var total = { distance: 0, duration: 0 };
+  var openLeg = -1;             // which leg's add-stop card is open, -1 for none
 
   var routeEl = document.getElementById('route');
   var planBtn = document.querySelector('#tripForm .btn-solid');
@@ -149,21 +152,24 @@
     return OSRM_URL + list.map(function (s) { return s.lon + ',' + s.lat; }).join(';') + '?overview=false';
   }
 
-  async function fetchRoute() {
+  // Routes the given stops. Only on success do they become the trip; on failure the trip stays as it was.
+  async function fetchRoute(next) {
+    openLeg = -1;
     sheet.classList.add('loading');
     planBtn.disabled = true;
     panel('loading', 'Plotting your route…', 'Finding each stop and timing every leg.');
     try {
-      var response = await fetch(routeUrl(stops));
+      var response = await fetch(routeUrl(next));
       if (!response.ok) throw new Error('OSRM HTTP ' + response.status);
       var data = await response.json();
       if (data.code !== 'Ok') throw new Error('OSRM code ' + data.code);
       var r = data.routes[0];
+      stops = next;
       legs = r.legs.map(function (l) { return { distance: l.distance, duration: l.duration }; });
       total = { distance: r.distance, duration: r.duration };
       render();
     } catch (e) {
-      panel('error', 'Couldn’t reach the route service', 'Check your connection, then try again. Your stops are still here.', 'Try again');
+      panel('error', 'Couldn’t reach the route service', 'Check your connection, then try again. Your stops are still here.', 'Try again', function () { fetchRoute(next); });
     } finally {
       sheet.classList.remove('loading');
       planBtn.disabled = false;
@@ -171,14 +177,14 @@
   }
 
   // A centered message in the route area (loading, error)
-  function panel(cls, title, body, btnText) {
+  function panel(cls, title, body, btnText, onBtn) {
     var p = el('div', 'panel ' + cls);
     p.appendChild(el('h2', null, title));
     p.appendChild(el('p', null, body));
     if (btnText) {
       var b = el('button', null, btnText);
       b.type = 'button';
-      b.addEventListener('click', fetchRoute);
+      b.addEventListener('click', onBtn);
       p.appendChild(b);
     }
     routeEl.replaceChildren(p);
@@ -197,6 +203,45 @@
     return s;
   }
 
+  // The note card that opens in leg i's gap
+  function addCard(i) {
+    var box = el('div', 'addcard');
+    box.appendChild(el('h4', null, 'Add a stop between ' + stops[i].name + ' and ' + stops[i + 1].name));
+    var lab = el('label', null, 'Town or place');
+    lab.htmlFor = 'addq';
+    box.appendChild(lab);
+    var input = el('input');
+    input.id = 'addq';
+    input.autocomplete = 'off';
+    input.placeholder = 'Try Concord or Woodstock';
+    box.appendChild(input);
+    var list = el('div', 'results');
+    list.setAttribute('aria-live', 'polite');
+    box.appendChild(list);
+    var err = el('p', 'err');
+    err.hidden = true;
+    box.appendChild(err);
+
+    var town = townSearch(input, list, err);
+
+    var row = el('div', 'addrow');
+    var ok = el('button', 'btn-solid', 'Add stop');
+    ok.type = 'button';
+    ok.addEventListener('click', function () {
+      if (!town.picked) { town.invalid('Pick a town from the list first.'); return; }
+      var next = stops.slice();
+      next.splice(i + 1, 0, town.picked);
+      fetchRoute(next);
+    });
+    var no = el('button', 'btn-ghost', 'Cancel');
+    no.type = 'button';
+    no.addEventListener('click', function () { openLeg = -1; render(); });
+    row.appendChild(ok);
+    row.appendChild(no);
+    box.appendChild(row);
+    return box;
+  }
+
   function render() {
     routeEl.replaceChildren();
 
@@ -213,25 +258,48 @@
       var card = el('article', 'stop');
       card.appendChild(el('span', 'num', String(i + 1)));
       card.appendChild(el('h3', null, s.name));
+      if (i > 0 && i < stops.length - 1) {
+        var x = el('button', 'remove', '×');
+        x.type = 'button';
+        x.setAttribute('aria-label', 'Remove ' + s.name);
+        x.addEventListener('click', function () {
+          fetchRoute(stops.filter(function (_, k) { return k !== i; }));
+        });
+        card.appendChild(x);
+      }
       routeEl.appendChild(card);
 
       if (legs[i]) {
         var leg = el('div', 'leg');
         leg.appendChild(arrow(i % 2 === 1));
+        var mid = el('div', 'mid');
         var label = el('div', 'label');
         label.appendChild(el('b', null, duration(legs[i].duration) + ' · ' + miles(legs[i].distance)));
-        leg.appendChild(label);
+        mid.appendChild(label);
+        var plus = el('button', 'plus', '+');
+        plus.type = 'button';
+        plus.setAttribute('aria-label', 'Add a stop between ' + s.name + ' and ' + stops[i + 1].name);
+        plus.setAttribute('aria-expanded', String(openLeg === i));
+        plus.addEventListener('click', function () {
+          openLeg = openLeg === i ? -1 : i;
+          render();
+          var q = document.getElementById('addq');
+          if (q) q.focus();
+        });
+        mid.appendChild(plus);
+        leg.appendChild(mid);
         routeEl.appendChild(leg);
+        if (openLeg === i) routeEl.appendChild(addCard(i));
       }
     });
   }
 
   document.getElementById('tripForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    if (!start.picked) start.invalid();
-    if (!dest.picked) dest.invalid();
+    if (!start.picked) start.invalid('Add a start first');
+    if (!dest.picked) dest.invalid('Add a destination first');
     if (!start.picked || !dest.picked) return;
-    stops = [start.picked, dest.picked];
-    fetchRoute();
+    // Keep any stops already added between start and destination
+    fetchRoute([start.picked].concat(stops.slice(1, -1), [dest.picked]));
   });
 })();
