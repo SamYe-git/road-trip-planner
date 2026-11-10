@@ -8,8 +8,9 @@ Rules for any agent working on this project.
 4. Styles use only the `:root` tokens from `DESIGN.md`. If a value is missing, stop and ask me.
 5. Data comes from four sources, with no key:
    - OSRM (`router.project-osrm.org`). Coordinates go longitude first.
-   - Open-Meteo Geocoding.
+   - Photon (`photon.komoot.io`) for town search and reverse lookup. Coordinates go longitude first.
    - Overpass (`overpass-api.de/api/interpreter`, POST `data=`), for Find along this leg. Check `response.ok`, and treat a `remark` field in the answer as an error.
+   - The browser's Geolocation API, for Use my location.
    - Google Maps, as links only, with no API.
 
    Never put an API key anywhere in the repo.

@@ -39,7 +39,8 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 
 **Trip form.** A row of fields along the top of the sheet below the road, on a grid with columns at least 140px wide and a dashed `--graphite-soft` rule underneath.
 - Each field has a monospace uppercase label (11px, `--graphite-soft`) and an input with a 1.5px graphite border on `--paper`.
-- The fields are **Start**, **Destination** and **Leave** (a `time` input).
+- The fields are **Start**, **Destination** (no placeholder text) and **Leave** (a `datetime-local` input, prefilled with today and the next full hour). The Leave input is only as wide as its value (`width: fit-content`), so the calendar button sits right after the time instead of at the far edge of the column.
+- **Use my location** *(v2)*: the first pill in Start's match list while Start is focused and empty, in the same pill style with a small pin drawn before the text. Hidden when location was refused.
 - **Match list** *(new, same style as the mockup's add-stop results)*: after typing in Start or Destination, the matches appear under that field as pill buttons, for example "Concord, New Hampshire, United States". The picked pill fills with graphite.
 - **Plan trip** *(new)*: a `--truck-red` solid button at the end of the row, in the same style as Add stop.
 
@@ -50,10 +51,10 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 - The **town** is in `--font-display` uppercase at 21px, followed by its region in the same line ("STOWE, VT"). A red number badge sits at the top right.
 - A monospace meta line shows "Arrive 9:40 AM" and, on Quick stops, "Leave 10:40 AM".
 - **Type pills** *(new)*: on middle stops only, two small pills, **Stay** and **Quick stop**, under the town, in the mockup's chip style at 12px. The current type is filled graphite.
-- **Minutes here** *(new)*: on Quick stops only, a small number input (about 6ch wide) in the meta line, styled like the form inputs, labelled "min here" in the monospace label style.
+- **Time here** *(v2)*: on Quick stops only, two small `<select>` dropdowns in the meta line, styled like the form inputs with a drawn ▾ arrow: hours ("–", 0 h to 12 h) and minutes ("–", 0 to 55 min, every 5). Labelled "here" in the monospace label style.
 - **Leave on** *(new)*: on Stays only, a date-and-time input in the meta line, in the same input style, labelled "Leave on" in the monospace label style. It replaces both "min here" and the Leave text.
 - **"Set a leave time"** *(new)*: in place of the arrival time on stops after a Stay with no Leave on, in hand font, `--graphite-soft`.
-- **"earliest" tag** *(new)*: a `--stripe-gold` monospace uppercase tag (10px, graphite text) placed before an arrival time that comes after an empty minutes field, for example `EARLIEST` Arrive 1:40 PM.
+- **"earliest" tag** *(new)*: a `--stripe-gold` monospace uppercase tag (10px, graphite text) placed before an arrival time that comes after a Quick stop with no time set, for example `EARLIEST` Arrive 1:40 PM.
 - **Remove ×**: on middle stops, at the bottom right in `--graphite-soft`, turning `--warn` on hover. Its label is "Remove {town}".
 
 **Leg connectors.** A 74px gap holding a dashed pencil arrow that curves toward the next card. In the middle sits a `--paper-2` label with "2 h 10 min · 128 mi" in bold monospace, then the **+ pin**: a 34px dashed-outline circle that turns solid gold when hovered or open. Below the label, **"Open this leg in Google Maps ↗"** *(new)* is a small handwritten underlined link in graphite. It opens in a new tab.
@@ -61,7 +62,7 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 **Add-stop card.** It opens in the gap of the leg whose + was pressed.
 - A `#fffdf6` note card, 84% wide, with a 2px dashed graphite border, tilted -0.4°.
 - Its heading reads "Add a stop between {A} and {B}" (display font, 17px).
-- **Town or place** input, with the placeholder "Try Concord or Woodstock". Matches appear as pills, and hints and errors show in hand font.
+- **Town or place** input, with no placeholder text. Matches appear as pills, and hints and errors show in hand font.
 - **Add stop** is a solid red button and **Cancel** is a ghost button.
 - **Stop type** *(new)*: two pills, **Stay** (selected by default) and **Quick stop**, between the matches and the buttons, in the mockup's chip style.
 - **Tabs** *(v2)*: under the heading, two tabs, **Search a town** and **Find along this leg**, in monospace uppercase 12px. The active tab is graphite text with a 2px graphite underline; the other is `--graphite-soft`.
@@ -88,7 +89,6 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 | Invalid: no destination | Destination input gets a `--warn` border with a soft glow, and a panel appears | Under the field, plus the route area | Under the field: "Add a destination first". Panel: **Where are you headed?** / "Add a destination, and the map will draw the legs." |
 | Invalid: no start | As above, on Start | Under the field | "Add a start first" |
 | Invalid: no town picked | Line under the buttons | Inside the add-stop card | "Pick a town from the list first." |
-| Invalid: bad minutes | Minutes input gets a `--warn` border | Under the meta line, in hand font | "Enter minutes as 0 or more." |
 | Invalid: Leave on before arrival | Leave on input gets a `--warn` border, and times keep their last valid values | Under the meta line, in hand font | "Leave after you arrive (Sat 1:15 PM)." with the stop's arrival time |
 | Ideal | Summary, zig-zag stop cards, legs with time · miles, + pin and Maps link, footer | Sheet | Times from OSRM and the Leave time |
 

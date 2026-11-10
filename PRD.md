@@ -23,25 +23,26 @@ Version 1 is one page with two screens.
 ### Screen 2: the open map
 
 1. **Trip form**
-   - **Start** and **Destination:** type a town, then pick from a list of matches that shows each town's state and country. A town counts only once it has been picked from the list.
-   - **Leave:** the departure time.
+   - **Start** and **Destination:** type a town (suggestions appear from the second letter, about 150 ms after typing stops, nearest towns first: near the user's location if known, otherwise near the other picked field), then pick from a list of matches that shows each town's state and country. A town counts only once it has been picked from the list. The fields start empty, with no placeholder text.
+   - **Use my location:** the page asks for the browser's location when it opens. While the Start field is focused and empty, a **Use my location** pill sits at the top of its match list. Picking it fills Start with the user's coordinates, named by a reverse lookup (or "My location" if the lookup fails). If location was refused or isn't available, the pill doesn't appear.
+   - **Leave:** the departure date and time. It starts filled with today's date and the next full hour, so only small changes are needed.
    - **Plan trip:** looks up the route.
 2. **Route.** Stop cards zig-zag down the map, with a leg between each pair of cards.
    - **Summary** at the top: total miles and total drive time.
    - **Each leg** shows drive time and miles (converted from OSRM's seconds and meters), a **+ pin**, and an **"Open this leg in Google Maps"** link.
-   - **Each stop card** shows its town with its state or region (for example "Stowe, VT"), so a wrong match is easy to spot. The region comes from the geocoding result's `admin1`, with US states abbreviated. The card also shows the arrival time.
+   - **Each stop card** shows its town with its state or region (for example "Stowe, VT"), so a wrong match is easy to spot. The region comes from the town search result's `state` (or `country` when there is no state), with US states abbreviated. The card also shows the arrival time.
    - **Middle stops** also have:
      - a **type**, either **Stay** or **Quick stop**, which can be switched on the card at any time
-     - for a **Quick stop** (gas, food, rest): a **minutes here** number field, and a leave time of arrival + minutes
+     - for a **Quick stop** (gas, food, rest): a **time here** picked with two dropdowns, **hours** (–, 0 to 12) and **minutes** (–, 0 to 55 in steps of 5), and a leave time of arrival + that time. The trip stores it as total minutes.
      - for a **Stay** (a city, overnight or several days): a **Leave on** date-and-time field. The next leg starts at that time.
      - a **×** to remove the stop
    - **Arrival times** start from the Leave time and add each leg's drive time and each Quick stop's minutes. After a Stay, the times restart from its Leave on.
-     - An empty minutes field counts as 0.
-     - Every arrival after an empty minutes field is tagged **"earliest"**, until a Stay with a Leave on restarts the times.
+     - A Quick stop whose hours and minutes are both "–" counts as 0. If only one is set, the other counts as 0.
+     - Every arrival after a Quick stop with no time set is tagged **"earliest"**, until a Stay with a Leave on restarts the times.
      - If a Stay's Leave on is empty, every stop after it shows **"Set a leave time"** instead of an arrival time.
-     - Editing minutes, Leave on, a stop's type or Leave recalculates the times straight away, without calling OSRM again.
+     - Editing the time here, Leave on, a stop's type or Leave recalculates the times straight away, without calling OSRM again.
 3. **Add a stop.** The + pin on a leg opens a card in that gap.
-   - Search a town (Open-Meteo Geocoding) and pick a match.
+   - Search a town (Photon) and pick a match. Results are biased toward the middle of that leg.
    - Choose the stop type with two pills, **Stay** (the default) and **Quick stop**.
    - **Add stop** splits the leg in two, fetches the route again and redraws. **Cancel** closes the card.
    - The card has two tabs: **Search a town** (above, the default) and **Find along this leg**.
@@ -64,10 +65,12 @@ Version 1 is one page with two screens.
 |---|---|---|
 | OSRM route API: `code`, `routes[0].legs[i].distance`, `routes[0].legs[i].duration`, `routes[0].distance`, `routes[0].duration` (coordinates go longitude first) | Have, URL tested in the browser (`PROPOSAL.md`) | OSRM public server |
 | OSRM CORS check from a GitHub Pages site | **Missing**, not yet run | Sam, Console check from the assignment |
-| Open-Meteo Geocoding: `results[].name`, `admin1`, `country`, `latitude`, `longitude`. No `results` field when nothing matches | Have, CORS-safe per the assignment | Open-Meteo |
+| Photon town search (`https://photon.komoot.io/api/?q=…&limit=6&layer=city&lat=…&lon=…`): `features[].properties.name`, `state`, `country`, `countrycode`, `features[].geometry.coordinates` (longitude first). Empty `features` when nothing matches. It matches partial words, and `lat`/`lon` rank nearby towns first, so "Welle" near Boston finds Wellesley. Replaces Open-Meteo Geocoding, which only matched whole words | Have, CORS and partial-word test in the browser on 11/09 | Photon (komoot, OpenStreetMap data) |
+| Photon reverse lookup (`https://photon.komoot.io/reverse?lat=…&lon=…`): names the town for Use my location | Same server as above | Photon |
 | Overpass API (`https://overpass-api.de/api/interpreter`, POST `data=`): `elements[].lat`, `lon`, `tags.name`, `tags.brand`. Empty `elements` when nothing matches. A `remark` field means the query timed out | Have, CORS tested from the live site on 11/09 (got a Mobil near Wellesley) | OpenStreetMap / Overpass |
 | Test route: Wellesley, MA → Concord, NH → Woodstock, NH → Stowe, VT | Have | Sam |
-| Minutes at each Quick stop, Leave on for each Stay | Entered by the user, no defaults | User |
+| Time at each Quick stop, Leave on for each Stay | Entered by the user, no defaults | User |
+| The user's location | Browser Geolocation API, asked once when the page opens. Optional | User's browser |
 | US state abbreviations (for "Stowe, VT") | Have, a fixed list in the code | Standard USPS codes |
 | Visual design | Have `design/glovebox-mockup.html`. The sketch PDFs are in `design/` | Sam |
 | `DESIGN.md` | **Missing**, required by the assignment | Sam, based on the mockup |
@@ -95,9 +98,8 @@ Follows `DESIGN.md` (to be written from `design/glovebox-mockup.html`).
   - Plan trip without a picked start or destination: "Add a destination first" (or the start equivalent).
   - Add stop with no town picked: "Pick a town from the list first."
   - Add stop on the Find along this leg tab with no place picked: "Pick a place from the list first."
-  - Minutes that are negative or not a number: "Enter minutes as 0 or more."
   - A Stay's Leave on earlier than its arrival: "Leave after you arrive ({arrival time})."
-  - In both of the last two cases, the times keep their last valid values.
+  - In that last case, the times keep their last valid values.
 
 The partial state is left out because OSRM returns every leg or none.
 
@@ -105,7 +107,7 @@ The partial state is left out because OSRM returns every leg or none.
 
 1. Plan Wellesley → Stowe and see the drive time, distance and total.
 2. Add Concord, NH and Woodstock, NH with the + pins, and see three legs and the new total.
-3. Make Concord a Stay with a Leave on time, and Woodstock a Quick stop with 60 minutes. Woodstock's arrival is counted from Concord's Leave on, and Stowe's arrival is Woodstock's arrival + 60 minutes + the last leg, with no "earliest" tag.
+3. Make Concord a Stay with a Leave on time, and Woodstock a Quick stop with 1 h 0 min. Woodstock's arrival is counted from Concord's Leave on, and Stowe's arrival is Woodstock's arrival + 60 minutes + the last leg, with no "earliest" tag.
 4. Open one leg in Google Maps.
 5. Reload the page and find the trip still there.
 6. On the Concord → Woodstock leg, open Find along this leg, pick Gas, add the first result, and see it become a Quick stop with four legs.
@@ -122,4 +124,4 @@ The partial state is left out because OSRM returns every leg or none.
 - **Gas:** MPG and tank size to show when to fill up, plus total cost split per person (needs a price per gallon, which is missing).
 - **Weather on arrival** from the Open-Meteo Forecast for the arrival hour (16-day limit).
 - Drag to reorder stops.
-- Locking the minutes field until the stop is actually reached.
+- Locking the time-here dropdowns until the stop is actually reached.
