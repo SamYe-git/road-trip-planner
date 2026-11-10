@@ -6,7 +6,7 @@ Rules for any agent working on this project.
 2. Use the simplest code that works, and add nothing I did not ask for.
 3. Plain HTML, CSS and JavaScript only: `index.html`, `css/styles.css`, `js/app.js`. No frameworks, no libraries, no npm, no build step, and nothing loaded from a CDN.
 4. Styles use only the `:root` tokens from `DESIGN.md`. If a value is missing, stop and ask me.
-5. Data comes from four sources, with no key:
+5. Data comes only from these sources, with no key:
    - OSRM (`router.project-osrm.org`). Coordinates go longitude first.
    - Photon (`photon.komoot.io`) for town search and reverse lookup. Coordinates go longitude first.
    - Overpass (`overpass-api.de/api/interpreter`, POST `data=`), for Find along this leg. Check `response.ok`, and treat a `remark` field in the answer as an error.
