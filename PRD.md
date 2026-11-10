@@ -44,8 +44,16 @@ Version 1 is one page with two screens.
    - Search a town (Open-Meteo Geocoding) and pick a match.
    - Choose the stop type with two pills, **Stay** (the default) and **Quick stop**.
    - **Add stop** splits the leg in two, fetches the route again and redraws. **Cancel** closes the card.
-4. **Whole-route link:** "Open this route in Google Maps ↗" at the bottom, with every stop included as a waypoint.
-5. **Saving**
+   - The card has two tabs: **Search a town** (above, the default) and **Find along this leg**.
+4. **Find along this leg** (version 2)
+   - Category pills: **Gas**, **Coffee**, **Food**, **Hotel**, **Rest area**. Picking one starts the search.
+   - The page gets that leg's road shape from OSRM (`overview=full&geometries=geojson`, the leg's two stops only), takes a point about every 5 miles (at most 40 points), and asks the Overpass API for that category within 2 miles of that line (`around:3200` on the points).
+   - OpenStreetMap tags: Gas `amenity=fuel`, Coffee `amenity=cafe`, Food `amenity=restaurant` or `amenity=fast_food`, Hotel `tourism=hotel` or `tourism=motel`, Rest area `highway=rest_area` or `highway=services`.
+   - Results are listed in the order you reach them, at most 15, each with its name (or "Unnamed {category}"), brand when it differs from the name, and the mile along the leg ("mile 23 of 68").
+   - Picking a result and pressing **Add stop** adds it like a town, as a **Quick stop** by default. Its card shows the place name with the category ("MOBIL, GAS").
+   - The leg shape is fetched once per open card. Switching categories only calls Overpass again.
+5. **Whole-route link:** "Open this route in Google Maps ↗" at the bottom, with every stop included as a waypoint.
+6. **Saving**
    - The trip is saved to `localStorage` (stops with coordinates, minutes, Leave time) and restored when the page opens.
    - **Start a new trip** clears it.
    - **Fold the map** returns to Screen 1.
@@ -57,6 +65,7 @@ Version 1 is one page with two screens.
 | OSRM route API: `code`, `routes[0].legs[i].distance`, `routes[0].legs[i].duration`, `routes[0].distance`, `routes[0].duration` (coordinates go longitude first) | Have, URL tested in the browser (`PROPOSAL.md`) | OSRM public server |
 | OSRM CORS check from a GitHub Pages site | **Missing**, not yet run | Sam, Console check from the assignment |
 | Open-Meteo Geocoding: `results[].name`, `admin1`, `country`, `latitude`, `longitude`. No `results` field when nothing matches | Have, CORS-safe per the assignment | Open-Meteo |
+| Overpass API (`https://overpass-api.de/api/interpreter`, POST `data=`): `elements[].lat`, `lon`, `tags.name`, `tags.brand`. Empty `elements` when nothing matches. A `remark` field means the query timed out | Have, CORS tested from the live site on 11/09 (got a Mobil near Wellesley) | OpenStreetMap / Overpass |
 | Test route: Wellesley, MA → Concord, NH → Woodstock, NH → Stowe, VT | Have | Sam |
 | Minutes at each Quick stop, Leave on for each Stay | Entered by the user, no defaults | User |
 | US state abbreviations (for "Stowe, VT") | Have, a fixed list in the code | Standard USPS codes |
@@ -72,16 +81,20 @@ Follows `DESIGN.md` (to be written from `design/glovebox-mockup.html`).
 - **Empty**
   - Before anything is chosen: Screen 1, the folded map in the cab.
   - When a town search finds nothing (no `results` field): "No town called "…". Check the spelling."
+  - When Find along this leg finds nothing: "No {category} within 2 miles of this leg."
   - When a Stay has no Leave on: every stop after it shows "Set a leave time" in place of its arrival time.
 - **Loading:** "Plotting your route…" with "Finding each stop and timing every leg." The truck drives across the road at the top.
+  - Find along this leg: "Looking along this leg…" inside the add-stop card, with the category pills disabled until it finishes.
 - **Error**
   - OSRM fails, or answers with a `code` other than `"Ok"`: "Couldn't reach the route service. Check your connection, then try again. Your stops are still here." It has a **Try again** button.
   - A town search fails: a one-line message inside the search card, with the card left open.
+  - Find along this leg fails (network, not `response.ok`, or a `remark` in the answer): "Couldn't reach the places service. Try again in a moment." with a **Try again** button, inside the card. The card stays open.
   - In both cases the trip on screen and in `localStorage` stays as it was.
 - **Ideal:** the summary, every stop card with its arrival time, every leg with time, miles, + pin and Maps link, and the whole-route link.
 - **Invalid input**, refused before any request:
   - Plan trip without a picked start or destination: "Add a destination first" (or the start equivalent).
   - Add stop with no town picked: "Pick a town from the list first."
+  - Add stop on the Find along this leg tab with no place picked: "Pick a place from the list first."
   - Minutes that are negative or not a number: "Enter minutes as 0 or more."
   - A Stay's Leave on earlier than its arrival: "Leave after you arrive ({arrival time})."
   - In both of the last two cases, the times keep their last valid values.
@@ -95,6 +108,7 @@ The partial state is left out because OSRM returns every leg or none.
 3. Make Concord a Stay with a Leave on time, and Woodstock a Quick stop with 60 minutes. Woodstock's arrival is counted from Concord's Leave on, and Stowe's arrival is Woodstock's arrival + 60 minutes + the last leg, with no "earliest" tag.
 4. Open one leg in Google Maps.
 5. Reload the page and find the trip still there.
+6. On the Concord → Woodstock leg, open Find along this leg, pick Gas, add the first result, and see it become a Quick stop with four legs.
 
 ## Out of scope
 
@@ -104,7 +118,6 @@ The partial state is left out because OSRM returns every leg or none.
 
 ## Later
 
-- **Find along this leg:** category search (gas, coffee, food, hotel, rest area) with the OpenStreetMap Overpass API, using `around:` on sampled OSRM route geometry. It needs a CORS check first, plus its own loading, nothing-found, error and invalid-input states.
 - **Day splitting** by max driving time per day, with an over-limit warning and "Day 1 / Day 2" headers. (Overnight stops are covered in version 1 by the Stay type.)
 - **Gas:** MPG and tank size to show when to fill up, plus total cost split per person (needs a price per gallon, which is missing).
 - **Weather on arrival** from the Open-Meteo Forecast for the arrival hour (16-day limit).

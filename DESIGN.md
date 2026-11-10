@@ -1,6 +1,6 @@
 # DESIGN: Road Trip Planner
 
-Reference: `design/glovebox-mockup.html`. This file covers only what `PRD.md` lists for version 1.
+Reference: `design/glovebox-mockup.html`. This file covers what `PRD.md` lists for version 1, plus Find along this leg (marked *v2*).
 
 ## Direction
 
@@ -64,6 +64,10 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 - **Town or place** input, with the placeholder "Try Concord or Woodstock". Matches appear as pills, and hints and errors show in hand font.
 - **Add stop** is a solid red button and **Cancel** is a ghost button.
 - **Stop type** *(new)*: two pills, **Stay** (selected by default) and **Quick stop**, between the matches and the buttons, in the mockup's chip style.
+- **Tabs** *(v2)*: under the heading, two tabs, **Search a town** and **Find along this leg**, in monospace uppercase 12px. The active tab is graphite text with a 2px graphite underline; the other is `--graphite-soft`.
+- **Category pills** *(v2)*: on Find along this leg, five pills (**Gas**, **Coffee**, **Food**, **Hotel**, **Rest area**) in the chip style. The picked one fills graphite.
+- **Place results** *(v2)*: a list of up to 15 rows, each a button: the name in `--font-body` bold, then the brand and "mile 23 of 68" in `--font-data` 12px `--graphite-soft`. The picked row gets a graphite left bar and a `--paper-2` background. The list scrolls inside the card past about 6 rows (max-height 280px).
+- On this tab the Stop type pills default to **Quick stop**.
 
 **Sheet footer.** Separated by a 1.5px graphite rule. On the left is **"Open this route in Google Maps ↗"** (bold graphite link). On the right are two ghost buttons: **Start a new trip** *(new, same ghost style)* and **Fold the map**, which returns to the cab.
 
@@ -74,6 +78,10 @@ Only system font stacks are used, with nothing loaded from a CDN. The focus styl
 | Empty: nothing chosen | Screen 1, the cab with the folded map | Whole page | Caption: "Click the map (or press Enter on it)." |
 | Empty: no town matches | No pills | Under the input, in hand font, `--graphite-soft` | "No town called "{query}". Check the spelling." |
 | Empty: Stay with no Leave on | Arrival times after it are replaced | Stop cards after that Stay, hand font, `--graphite-soft` | "Set a leave time" |
+| Empty: nothing along the leg | No rows | Inside the add-stop card, hand font, `--graphite-soft` | "No {category} within 2 miles of this leg." |
+| Loading: along the leg | Pencil-dash line that fills left to right, category pills disabled | Inside the add-stop card | "Looking along this leg…" |
+| Error: places | One line in `--warn` hand font and a ghost **Try again** button, card stays open | Inside the add-stop card | "Couldn't reach the places service. Try again in a moment." |
+| Invalid: no place picked | Line under the buttons | Inside the add-stop card | "Pick a place from the list first." |
 | Loading | Route area replaced by a centered panel, truck drives across the road | Route area | **Plotting your route…** / "Finding each stop and timing every leg." |
 | Error: route | Centered panel, title in `--warn`, graphite **Try again** button | Route area | **Couldn't reach the route service** / "Check your connection, then try again. Your stops are still here." |
 | Error: town search | Card stays open, one line in `--warn` hand font | Inside the search card or under the field | "Couldn't search towns. Check your connection, then try again." *(new wording, not in PRD)* |
