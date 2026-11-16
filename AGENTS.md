@@ -9,7 +9,7 @@ Rules for any agent working on this project.
 5. Data comes only from these sources, with no key:
    - OSRM (`router.project-osrm.org`). Coordinates go longitude first.
    - Photon (`photon.komoot.io`) for town search and reverse lookup. Coordinates go longitude first.
-   - Overpass (`overpass-api.de/api/interpreter`, POST `data=`), for Find along this leg. Check `response.ok`, and treat a `remark` field in the answer as an error.
+   - Overpass (`overpass-api.de/api/interpreter`, POST `data=`), for Find along the road. Check `response.ok`, and treat a `remark` field in the answer as an error.
    - The browser's Geolocation API, for Use my location.
    - Google Maps, as links only, with no API.
 

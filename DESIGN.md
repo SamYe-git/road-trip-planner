@@ -1,6 +1,6 @@
 # DESIGN: Road Trip Planner
 
-References: `design/pixel-cab-mockup.html` for Screen 1 and the Trip archive, `design/glovebox-mockup.html` for Screen 2. This file covers what `PRD.md` lists for version 1, plus Find along this leg (marked *v2*).
+References: `design/pixel-cab-mockup.html` for Screen 1 and the Trip archive, `design/glovebox-mockup.html` for Screen 2. This file covers what `PRD.md` lists for version 1, plus Find along the road (marked *v2*).
 
 ## Direction
 
@@ -49,8 +49,8 @@ The mockup's own names map to existing tokens: `--ink` is `--graphite`, `--ink-s
   - the **earliest** tag: the same `--stripe-gold` monospace uppercase tag (10px, graphite text) before "arrive"
   - "Set a leave time": the same hand font in `--graphite-soft`
   - "Drive time and miles for every stop of your road trip.": `--graphite-soft`
-- **Leg counter**, under line 2: **‹**, "LEG 1 OF 3" and **›** in a row with 8px gaps. The text is `--font-data` 12px uppercase, letter-spacing .14em, `--graphite-soft`. The buttons are small ghost buttons, 28px square: 1.5px `--graphite` border, `--radius`, transparent, `--font-data` 16px. Disabled at the first and last leg (opacity .4). Hidden when there is no trip.
-- **Live region:** line 1 and line 2 sit together in one `aria-live="polite"` wrapper, so screen readers hear the new stop and arrival. The ‹ › buttons sit outside it. Their labels are "Previous leg" and "Next leg".
+- **Stop counter**, under line 2: **‹**, "STOP 1 OF 3" and **›** in a row with 8px gaps. The text is `--font-data` 12px uppercase, letter-spacing .14em, `--graphite-soft`. The buttons are small ghost buttons, 28px square: 1.5px `--graphite` border, `--radius`, transparent, `--font-data` 16px. Disabled at the first and last leg (opacity .4). Hidden when there is no trip.
+- **Live region:** line 1 and line 2 sit together in one `aria-live="polite"` wrapper, so screen readers hear the new stop and arrival. The ‹ › buttons sit outside it. Their labels are "Previous stop" and "Next stop".
 - All headline text is set with `textContent`.
 
 **Current leg.** The current leg's end card gets a `3px solid var(--stripe-gold)` outline, offset 3px, on top of its usual shadow. Stop cards and leg connectors show `cursor: pointer`, since clicking them picks the leg.
@@ -85,10 +85,11 @@ The mockup's own names map to existing tokens: `--ink` is `--graphite`, `--ink-s
 - **Town or place** input, with no placeholder text. Matches appear as pills, and hints and errors show in hand font.
 - **Add stop** is a solid red button and **Cancel** is a ghost button.
 - **Stop type** *(new)*: two pills, **Stay** (selected by default) and **Quick stop**, between the matches and the buttons, in the mockup's chip style.
-- **Tabs** *(v2)*: under the heading, two tabs, **Search a town** and **Find along this leg**, in monospace uppercase 12px. The active tab is graphite text with a 2px graphite underline; the other is `--graphite-soft`.
-- **Category pills** *(v2)*: on Find along this leg, five pills (**Gas**, **Coffee**, **Food**, **Hotel**, **Rest area**) in the chip style. The picked one fills graphite.
+- **Tabs** *(v2)*: under the heading, two tabs, **Search a town** and **Find along the road**, in monospace uppercase 12px. The active tab is graphite text with a 2px graphite underline; the other is `--graphite-soft`.
+- **Category pills** *(v2)*: on Find along the road, five pills (**Gas**, **Coffee**, **Food**, **Hotel**, **Rest area**) in the chip style. The picked one fills graphite.
 - **Place results** *(v2)*: a list of up to 15 rows, each a button: the name in `--font-body` bold, then the brand and "mile 23 of 68" in `--font-data` 12px `--graphite-soft`. The picked row gets a graphite left bar and a `--paper-2` background. The list scrolls inside the card past about 6 rows (max-height 280px).
 - On this tab the Stop type pills default to **Quick stop**.
+- **Long-road note** *(new)*: on a leg over 150 miles, a line under the category pills in hand font, `--graphite-soft`: "Searching the first 150 miles of the road."
 
 **Sheet footer.** Separated by a 1.5px graphite rule. On the left is **"Start directions for the whole route in Google Maps ↗"** (bold graphite link). On the right are two ghost buttons: **Start a new trip** *(new, same ghost style)* and **Fold the map**, which returns to the cab.
 
@@ -153,7 +154,7 @@ Screen 1 and the Trip archive. Screen 2 keeps its current look this round.
 **Map card** (`.map`, a button). 150px wide, `--paper` with two `--fold` lines crossing at the middle, 3px `--graphite` border, hard `4px 4px 0` `--box-edge` shadow, padding 8px, gap 4px.
 - Route drawing: a 48×28 canvas, scaled up pixelated, on `--map-art` with a 2px `--graphite` border. It shows a river, small ridges, a red dotted route and graphite stop dots, seeded from the trip's id so each trip keeps its own drawing.
 - Name: "{START} → {DESTINATION}" in `--font-data` 13px bold uppercase.
-- Meta: "3 legs · 214 mi", then the saved date "Nov 9, 2026", in `--font-data` 16px `--graphite-soft`, tabular numbers.
+- Meta: "4 stops · 214 mi", then the saved date "Nov 9, 2026", in `--font-data` 16px `--graphite-soft`, tabular numbers.
 - **LATEST** badge on the newest: `--truck-red` with `--paper` text, `--font-data` 11px bold, 2px `--graphite` border, sitting over the top right corner.
 - Hover and picked: lifts 6px. Picked also gets a 3px `--stripe-gold` outline, offset 2px.
 
@@ -168,13 +169,13 @@ Screen 1 and the Trip archive. Screen 2 keeps its current look this round.
 | Storage blocked | Only the + NEW TRIP slot, picked | Tray footer note | "Trips can't be saved in this browser." |
 | Empty: no town matches | No pills | Under the input, in hand font, `--graphite-soft` | "No town called "{query}". Check the spelling." |
 | Empty: Stay with no Leave on | Arrival times after it are replaced | Stop cards after that Stay, hand font, `--graphite-soft` | "Set a leave time" |
-| Empty: nothing along the leg | No rows | Inside the add-stop card, hand font, `--graphite-soft` | "No {category} within 2 miles of this leg." |
-| Loading: along the leg | Pencil-dash line that fills left to right, category pills disabled | Inside the add-stop card | "Looking along this leg…" |
+| Empty: nothing along the leg | No rows | Inside the add-stop card, hand font, `--graphite-soft` | "No {category} within 2 miles of the road." On a leg over 150 miles: "…of the road in the first 150 miles." |
+| Loading: along the leg | Pencil-dash line that fills left to right, category pills disabled | Inside the add-stop card | "Looking along the road…" |
 | Error: places | One line in `--warn` hand font and a ghost **Try again** button, card stays open | Inside the add-stop card | "Couldn't reach the places service. Try again in a moment." |
 | Invalid: no place picked | Line under the buttons | Inside the add-stop card | "Pick a place from the list first." |
 | Empty: no trip (headline) | Line 1 and line 2, no leg counter | Header | **WHERE TO?** / "Drive time and miles for every stop of your road trip." |
-| Loading | Route area replaced by a centered panel, truck drives across the road. Headline line 1 changes; line 2 and the counter stay | Route area, header | **Plotting your route…** / "Finding each stop and timing every leg." Headline: **PLOTTING ROUTE…** |
-| Ideal (headline) | Next stop, its leg and arrival, leg counter with ‹ › | Header | **NEXT STOP: CONCORD, NH** / "1 h 25 min · 68 mi · arrive 9:40 AM" / "LEG 1 OF 3" |
+| Loading | Route area replaced by a centered panel, truck drives across the road. Headline line 1 changes; line 2 and the counter stay | Route area, header | **Plotting your route…** / "Finding each stop and timing every drive." Headline: **PLOTTING ROUTE…** |
+| Ideal (headline) | Next stop, its leg and arrival, stop counter with ‹ › | Header | **NEXT STOP: CONCORD, NH** / "1 h 25 min · 68 mi · arrive 9:40 AM" / "STOP 1 OF 3" |
 | Error: route | Centered panel, title in `--warn`, graphite **Try again** button. The headline goes back to what it showed before loading | Route area | **Couldn't reach the route service** / "Check your connection, then try again. Your stops are still here." |
 | Error: town search | Card stays open, one line in `--warn` hand font | Inside the search card or under the field | "Couldn't search towns. Check your connection, then try again." *(new wording, not in PRD)* |
 | Invalid: no destination | Destination input gets a `--warn` border with a soft glow, and a panel appears | Under the field, plus the route area | Under the field: "Add a destination first". Panel: **Where are you headed?** / "Add a destination, and the map will draw the legs." |

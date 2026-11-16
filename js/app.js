@@ -179,7 +179,7 @@
     openLeg = -1;
     sheet.classList.add('loading');
     planBtn.disabled = true;
-    panel('loading', 'Plotting your route…', 'Finding each stop and timing every leg.');
+    panel('loading', 'Plotting your route…', 'Finding each stop and timing every drive.');
     try {
       var response = await fetch(routeUrl(next));
       if (!response.ok) throw new Error('OSRM HTTP ' + response.status);
@@ -263,13 +263,26 @@
     return pts;
   }
 
-  // The road shape of one leg, from OSRM, as sampled points. Throws on a failed request.
+  // Longer roads are too heavy for Overpass, so only their first 150 miles are searched
+  var SEARCH_MILES = 150;
+
+  // The line cut off at the given number of miles
+  function firstMiles(coords, max) {
+    var out = [coords[0]], run = 0;
+    for (var k = 1; k < coords.length && run < max; k++) {
+      run += milesBetween(coords[k - 1], coords[k]);
+      out.push(coords[k]);
+    }
+    return out;
+  }
+
+  // The road shape of one leg (its first 150 miles), from OSRM, as sampled points. Throws on a failed request.
   async function legShape(a, b) {
     var response = await fetch(OSRM_URL + a.lon + ',' + a.lat + ';' + b.lon + ',' + b.lat + '?overview=full&geometries=geojson');
     if (!response.ok) throw new Error('OSRM HTTP ' + response.status);
     var data = await response.json();
     if (data.code !== 'Ok') throw new Error('OSRM code ' + data.code);
-    return samplePoints(data.routes[0].geometry.coordinates);
+    return samplePoints(firstMiles(data.routes[0].geometry.coordinates, SEARCH_MILES));
   }
 
   function placesQuery(cat, pts) {
@@ -284,11 +297,20 @@
 
   // Places of one category near the sampled points, in the order you reach them (at most 15). Throws on failure.
   async function findPlaces(cat, pts) {
-    var response = await fetch(OVERPASS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(placesQuery(cat, pts))
-    });
+    // A busy server can hold the request for minutes: give up after 30 s and show the error
+    var stop = new AbortController();
+    var timer = setTimeout(function () { stop.abort(); }, 30000);
+    var response;
+    try {
+      response = await fetch(OVERPASS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(placesQuery(cat, pts)),
+        signal: stop.signal
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!response.ok) throw new Error('Overpass HTTP ' + response.status);
     var data = await response.json();
     if (data.remark) throw new Error('Overpass remark: ' + data.remark);
@@ -318,7 +340,7 @@
     var tabs = el('div', 'tabs');
     tabs.setAttribute('role', 'tablist');
     var townTab = el('button', 'tab', 'Search a town');
-    var alongTab = el('button', 'tab', 'Find along this leg');
+    var alongTab = el('button', 'tab', 'Find along the road');
     [townTab, alongTab].forEach(function (t) {
       t.type = 'button';
       t.setAttribute('role', 'tab');
@@ -334,7 +356,6 @@
     var input = el('input');
     input.id = 'addq';
     input.autocomplete = 'off';
-    input.placeholder = 'Try Concord or Woodstock';
     townPane.appendChild(input);
     var list = el('div', 'results');
     list.setAttribute('aria-live', 'polite');
@@ -356,6 +377,9 @@
     cats.setAttribute('role', 'group');
     cats.setAttribute('aria-label', 'Category');
     alongPane.appendChild(cats);
+    var legMiles = Math.round(legs[i].distance / 1609.34);
+    var longRoad = legMiles > SEARCH_MILES;
+    if (longRoad) alongPane.appendChild(el('p', 'hint', 'Searching the first ' + SEARCH_MILES + ' miles of the road.'));
     var status = el('div', 'status');
     status.setAttribute('aria-live', 'polite');
     alongPane.appendChild(status);
@@ -368,7 +392,6 @@
     var shape = null;      // the leg's sampled points, fetched once per open card
     var started = false;   // the shape fetch starts the first time the tab opens
     var picked = null;     // { name, region, lat, lon } of the picked place
-    var legMiles = Math.round(legs[i].distance / 1609.34);
 
     function setBusy(on) {
       cats.querySelectorAll('.chip').forEach(function (c) { c.disabled = on; });
@@ -379,14 +402,14 @@
       setBusy(true);
       picked = null;
       places.replaceChildren();
-      status.replaceChildren(el('p', 'hint', 'Looking along this leg…'), el('div', 'dashline'));
+      status.replaceChildren(el('p', 'hint', 'Looking along the road…'), el('div', 'dashline'));
       try {
         if (!shape) shape = await legShape(stops[i], stops[i + 1]);
-        status.replaceChildren();
-        if (!cat) return;
+        if (!cat) { status.replaceChildren(); return; }
         var found = await findPlaces(cat, shape);
+        status.replaceChildren(); // keep "Looking along the road…" up until the places are back
         if (!found.length) {
-          status.replaceChildren(el('p', 'hint', 'No ' + cat.label.toLowerCase() + ' within 2 miles of this leg.'));
+          status.replaceChildren(el('p', 'hint', 'No ' + cat.label.toLowerCase() + ' within 2 miles of the road' + (longRoad ? ' in the first ' + SEARCH_MILES + ' miles.' : '.')));
           return;
         }
         drawPlaces(found, cat);
@@ -850,8 +873,7 @@
     routeArt(c, t.id);
     b.appendChild(c);
     b.appendChild(el('span', 't', t.stops[0].name + ' → ' + t.stops[t.stops.length - 1].name));
-    var n = t.stops.length - 1;
-    var meta = n + (n === 1 ? ' leg' : ' legs');
+    var meta = t.stops.length + ' stops';
     if (t.legs && typeof t.legs.miles === 'number') meta += ' · ' + t.legs.miles.toLocaleString('en-US') + ' mi';
     b.appendChild(el('span', 'm', meta));
     b.appendChild(el('span', 'm', new Date(t.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })));
@@ -876,9 +898,8 @@
     shelf.appendChild(nb);
     shelf.querySelectorAll('.map-card').forEach(function (b, k) {
       b.style.animationDelay = (k * 0.08) + 's'; // the cards slide in one after another
-      b.addEventListener('click', function () { pick(k); });
+      b.addEventListener('click', function () { pick(k); unfold(); }); // clicking a map opens it
     });
-    nb.addEventListener('click', unfold); // a blank trip has nothing to preview: go straight to Screen 2
     trayNote.textContent = !list ? 'Trips can’t be saved in this browser.'
       : !list.length ? 'No saved trips yet. Start one.'
       : 'Oldest on the left, newest on the right. Pick a map, or start a new one.';
