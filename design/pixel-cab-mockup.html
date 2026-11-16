@@ -1,0 +1,532 @@
+<title>Pixel Cab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+/* Layout: one pixel-art cab scene (canvas, 320x180 scaled up) under a pixel headline; the glovebox opens a trip-archive tray over the scene. Single paper theme by choice. */
+:root {
+  --paper: #f4f2ec;
+  --ink: #2a2826;
+  --ink-soft: #6d6a63;
+  --red: #c7361f;
+  --gold: #d49b1a;
+  --tan: #b0946a;
+  --box: #3b2f24;
+  --box-2: #54432f;
+  --font-pixel: "Press Start 2P", "Courier New", monospace;
+  --font-body: "VT323", "Courier New", monospace;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+html, body { background: var(--paper); color: var(--ink); }
+body {
+  font: 22px/1.25 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: flex; align-items: end; justify-content: space-between; gap: 16px; border-bottom: 4px solid var(--ink); padding-bottom: 12px; }
+h1 { font: 400 clamp(16px, 3.6vw, 32px)/1.35 var(--font-pixel); margin: 0; text-wrap: balance; }
+h1 span { color: var(--red); display: block; }
+.stripes { display: grid; gap: 4px; width: 90px; flex: none; }
+.stripes i { display: block; height: 6px; transform: skewX(-30deg); }
+.stripes i:nth-child(1) { background: var(--gold); }
+.stripes i:nth-child(2) { background: var(--red); }
+.stripes i:nth-child(3) { background: var(--ink); }
+
+.stage { position: relative; border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--ink); }
+canvas#cab { display: block; width: 100%; height: auto; aspect-ratio: 320 / 180; image-rendering: pixelated; cursor: default; touch-action: none; }
+canvas#cab:focus-visible { outline: 4px solid var(--gold); outline-offset: 4px; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.controls .group { display: flex; gap: 6px; align-items: center; }
+.controls .lab { font: 10px var(--font-pixel); color: var(--ink-soft); letter-spacing: .05em; }
+.px-btn {
+  font: 11px var(--font-pixel); color: var(--ink); background: var(--paper);
+  border: 3px solid var(--ink); padding: 8px 10px; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.px-btn:hover { background: #fffaf0; }
+.px-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+.px-btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.px-btn.solid { background: var(--red); color: var(--paper); }
+.px-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.hint { color: var(--ink-soft); margin: 0; }
+
+/* Glovebox tray */
+.tray {
+  position: absolute; left: 4%; right: 4%; top: 8%;
+  background: var(--box); color: var(--paper);
+  border: 4px solid #17120d; box-shadow: 0 0 0 4px var(--tan), 8px 8px 0 4px #17120d;
+  padding: 14px 14px 16px; display: grid; gap: 12px;
+  transform-origin: 78% 0;
+  animation: trayIn .35s steps(6) both;
+}
+@keyframes trayIn { from { transform: scaleY(.1); opacity: .2; } to { transform: none; opacity: 1; } }
+.tray-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tray-head h2 { font: 12px/1.4 var(--font-pixel); margin: 0; color: var(--gold); }
+.tray-head .px-btn { padding: 6px 8px; font-size: 10px; }
+.shelf {
+  display: flex; gap: 12px; overflow-x: auto; padding: 6px 2px 14px;
+  background:
+    linear-gradient(var(--box-2), var(--box-2)) bottom / 100% 8px no-repeat;
+  scroll-snap-type: x mandatory;
+}
+.map {
+  flex: 0 0 150px; scroll-snap-align: end;
+  background: var(--paper); color: var(--ink);
+  border: 3px solid var(--ink); padding: 8px; text-align: left;
+  font: 20px/1.1 var(--font-body); cursor: pointer; display: grid; gap: 4px;
+  box-shadow: 4px 4px 0 #17120d; position: relative;
+  animation: slideIn .4s steps(4) both;
+  background-image:
+    linear-gradient(90deg, transparent 49%, #d8d2c3 49%, #d8d2c3 51%, transparent 51%),
+    linear-gradient(transparent 49%, #d8d2c3 49%, #d8d2c3 51%, transparent 51%);
+}
+@keyframes slideIn { from { transform: translateX(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.map:nth-child(2) { animation-delay: .08s; } .map:nth-child(3) { animation-delay: .16s; } .map:nth-child(4) { animation-delay: .24s; }
+.map:hover, .map[aria-pressed="true"] { transform: translateY(-6px); }
+.map[aria-pressed="true"] { outline: 3px solid var(--gold); outline-offset: 2px; }
+.map:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.map canvas { width: 100%; height: auto; aspect-ratio: 48 / 28; image-rendering: pixelated; background: #ebe6d9; border: 2px solid var(--ink); }
+.map .t { font: 9px/1.5 var(--font-pixel); }
+.map .m { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.map .badge { position: absolute; top: -12px; right: -6px; background: var(--red); color: var(--paper); font: 8px var(--font-pixel); padding: 4px 5px; border: 2px solid var(--ink); }
+.map.new {
+  background: transparent; color: var(--paper); border: 3px dashed var(--tan); box-shadow: none;
+  place-items: center; text-align: center; font: 10px/1.6 var(--font-pixel); min-height: 160px;
+}
+.map.new b { font-size: 28px; color: var(--gold); }
+.tray-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.tray-foot p { margin: 0; color: #e5dccb; min-width: 0; flex: 1 1 260px; }
+
+@media (max-width: 640px) {
+  .tray { position: static; margin-top: 0; box-shadow: none; }
+  .map { flex-basis: 128px; }
+  body { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tray, .map { animation: none; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>EVERY LEG.<span>NOT JUST THE TOTAL.</span></h1>
+    <div class="stripes" aria-hidden="true"><i></i><i></i><i></i></div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="cab" width="320" height="180" tabindex="0"
+      aria-label="Pixel truck cab. Drag the steering wheel or use the left and right arrow keys to turn. Click the shifter letters to change gear. Click the glovebox to open your trip archive."></canvas>
+    <section class="tray" id="tray" hidden aria-label="Trip archive">
+      <div class="tray-head">
+        <h2>GLOVEBOX · TRIP ARCHIVE</h2>
+        <button class="px-btn" id="closeTray" type="button">CLOSE ×</button>
+      </div>
+      <div class="shelf" id="shelf" role="group" aria-label="Saved trips, oldest on the left"></div>
+      <div class="tray-foot">
+        <p id="trayNote">Oldest on the left, newest on the right. Pick a map, or start a new one.</p>
+        <button class="px-btn solid" id="unfold" type="button">UNFOLD MAP</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="controls">
+    <div class="group" role="group" aria-label="Gear">
+      <span class="lab">GEAR</span>
+      <button class="px-btn gear" type="button" data-g="P" aria-pressed="true">P</button>
+      <button class="px-btn gear" type="button" data-g="R" aria-pressed="false">R</button>
+      <button class="px-btn gear" type="button" data-g="N" aria-pressed="false">N</button>
+      <button class="px-btn gear" type="button" data-g="D" aria-pressed="false">D</button>
+    </div>
+    <button class="px-btn" id="openBox" type="button">OPEN GLOVEBOX</button>
+    <p class="hint">Drag the wheel (or ← →) to steer · drag the shifter back to D (or ↓) to drive · click the glovebox.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var cv = document.getElementById('cab');
+  var g = cv.getContext('2d');
+  var W = 320, H = 180;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var C = {
+    ink: '#2a2826', sky1: '#a9d7e6', sky2: '#c9e6ee', sky3: '#e6f1ee',
+    far: '#7d9a8c', near: '#4c5a3a', snow: '#f4f2ec', grass: '#8a9a5b', grass2: '#7a8a4d',
+    road: '#55504b', line: '#d49b1a', edge: '#e9e5da',
+    tan: '#b0946a', tan2: '#9c8059', tan3: '#c4a97f', dark: '#1d1b1a',
+    red: '#c7361f', blue: '#4f7891', lcd: '#9fd0c0', white: '#f4f2ec', gold: '#d49b1a',
+    box: '#3b2f24', velour: '#a88b62'
+  };
+
+  // ---- 3x5 pixel font ----
+  var F = {
+    'A':'.#.#.#####.##.#', 'B':'##.#.###.#.###.', 'C':'.###..#..#...##', 'D':'##.#.##.##.###.', 'E':'####..##.#..###',
+    'F':'####..##.#..#..', 'G':'.###..#.##.#.##', 'H':'#.##.#####.##.#', 'I':'###.#..#..#.###', 'J':'..#..#..##.#.#.',
+    'K':'#.##.###.#.##.#', 'L':'#..#..#..#..###', 'M':'#.########.##.#', 'N':'##.#.##.##.##.#', 'O':'.#.#.##.##.#.#.',
+    'P':'##.#.###.#..#..', 'Q':'.#.#.##.###..##', 'R':'##.#.###.#.##.#', 'S':'.###...#...###.', 'T':'###.#..#..#..#.',
+    'U':'#.##.##.##.####', 'V':'#.##.##.##.#.#.', 'W':'#.##.########.#', 'X':'#.##.#.#.#.##.#', 'Y':'#.##.#.#..#..#.',
+    'Z':'###..#.#.#..###', '0':'####.##.##.####', '1':'.#.##..#..#.###', '2':'##...#.#.#..###', '3':'##...#.#...###.',
+    '4':'#.##.####..#..#', '5':'####..##...###.', '6':'.###..####.####', '7':'###..#.#..#..#.', '8':'####.#####.####',
+    '9':'####.####..###.', '.':'.............#.', '-':'......###......', ':':'....#.....#....', '+':'....#.###.#....',
+    '/':'..#..#.#.#..#..', ' ':'...............'
+  };
+
+  function text(s, x, y, col) {
+    g.fillStyle = col;
+    for (var i = 0; i < s.length; i++) {
+      var gl = F[s[i]] || F[' '];
+      for (var p = 0; p < 15; p++) if (gl[p] === '#') g.fillRect(x + i * 4 + (p % 3), y + Math.floor(p / 3), 1, 1);
+    }
+  }
+  function px(x, y, w, h, col) { g.fillStyle = col; g.fillRect(x | 0, y | 0, w | 0, h | 0); }
+
+  // ---- mountains (fixed random ridges, repeat every 320px) ----
+  function ridge(seed, base, amp, rough) {
+    var a = [], h = base, s = seed;
+    function rnd() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
+    for (var i = 0; i < 320; i++) {
+      h += (rnd() - .5) * rough;
+      h += (base - h) * .02;
+      a.push(Math.max(base - amp, Math.min(base + amp, h)));
+    }
+    for (var j = 0; j < 20; j++) { var k = 300 + j; a[k] = a[k] + (a[j] - a[k]) * (j / 20); }
+    return a;
+  }
+  var farR = ridge(7, 38, 14, 3.2), nearR = ridge(41, 50, 9, 2.4);
+  var PROPS = [];
+  for (var pi = 0; pi < 24; pi++) PROPS.push({ d: 2 + pi * 2.5, side: pi % 2 ? 1 : -1, kind: pi % 3 === 0 ? 'post' : 'tree', off: (pi * 7) % 10 });
+
+  // ---- state ----
+  var S = {
+    gear: 'P', speed: 0, phase: 0, pan: 0, odo: 21400,
+    wheel: 0, wheelTarget: 0, dragging: false, keyTurn: 0,
+    knobX: 0, box: 0, boxOpen: false, hoverBox: false
+  };
+  var GEARS = ['P', 'R', 'N', 'D'];
+  // vertical gate: P at the front (top of the screen), D nearest the driver
+  var GATE = { x: 152, y: 135, w: 26, h: 42 };
+  function gearY(gr) { return GATE.y + 6 + GEARS.indexOf(gr) * 10; }
+  S.knobX = gearY('P');
+
+  var WHEEL = { x: 78, y: 164, r: 34 };
+  var BOX = { x: 214, y: 99, w: 80, h: 27 };
+
+  // ---- drawing ----
+  function drawWindshield() {
+    var top = 6, bot = 92;
+    g.save();
+    g.beginPath(); g.rect(14, top, 292, bot - top); g.clip();
+    // sky bands
+    px(0, top, W, 18, C.sky1); px(0, top + 18, W, 14, C.sky2); px(0, top + 32, W, 40, C.sky3);
+    // sun
+    for (var yy = -5; yy <= 5; yy++) for (var xx = -5; xx <= 5; xx++) if (xx * xx + yy * yy <= 26) px(250 + xx, 22 + yy, 1, 1, '#f3d27a');
+    var horizon = 62;
+    // mountains are far away, so they stay put while driving
+    for (var x = 0; x < W; x++) {
+      var hf = Math.floor(farR[x]);
+      px(x, hf, 1, horizon - hf, C.far);
+      if (hf < 32) px(x, hf, 1, 2, C.snow);
+      var hn = Math.floor(nearR[x]);
+      if (hn < horizon) px(x, hn, 1, horizon - hn, C.near);
+    }
+    // ground bands and the road both rush toward the viewer
+    for (var y = horizon; y < bot; y++) {
+      var t = (y - horizon) / (bot - horizon), z = 1 / (t + .06);
+      px(0, y, W, 1, (Math.floor(z * .7 - S.phase * .12) % 2 === 0) ? C.grass2 : C.grass);
+      var hw = 1 + t * 70, cx = 160;
+      px(cx - hw, y, hw * 2, 1, C.road);
+      px(cx - hw, y, 1, 1, C.edge); px(cx + hw - 1, y, 1, 1, C.edge);
+      if (Math.floor(z * 1.4 - S.phase * .25) % 2 === 0) px(cx - Math.max(1, t * 2), y, Math.max(1, t * 4), 1, C.line);
+    }
+    // roadside trees and posts: they grow and slide out to both sides as you drive past
+    PROPS.slice().sort(function (p, q) { return q.d - p.d; }).forEach(function (o) {
+      var t = 2 / o.d; if (t > 1.6) return;
+      var yb = horizon + t * (bot - horizon), hw = 1 + t * 70;
+      var xb = 160 + o.side * (hw + 4 + t * (o.kind === 'post' ? 4 : 14 + o.off));
+      var s = t * 26;
+      if (o.kind === 'tree') {
+        px(xb - Math.max(1, s * .06), yb - s * .25, Math.max(1, s * .12), s * .25, '#5a4630');
+        for (var r = 0; r < s * .85; r++) {
+          var w = (r / (s * .85)) * s * .45 + 1;
+          px(xb - w / 2, yb - s + r, w, 1, (r % 4 === 0) ? '#3f4c30' : C.near);
+        }
+      } else {
+        px(xb - Math.max(1, s * .03), yb - s * .5, Math.max(1, s * .06), s * .5, C.edge);
+        px(xb - Math.max(1, s * .03), yb - s * .5, Math.max(1, s * .06), Math.max(1, s * .08), C.red);
+      }
+    });
+    g.restore();
+    // frame + A-pillars
+    px(12, 4, 296, 2, C.ink);
+    for (y = 4; y < 94; y++) { var k = Math.floor((94 - y) / 8); px(4 + k, y, 10, 1, C.ink); px(306 - k, y, 10, 1, C.ink); }
+    // mirror
+    px(146, 6, 28, 7, C.ink); px(148, 7, 24, 4, '#8fb4c2'); px(159, 4, 2, 3, C.ink);
+  }
+
+  function drawDash() {
+    var top = 92;
+    for (var y = top; y < 132; y++) for (var x = 0; x < W; x += 1) {
+      var c = ((x + y) % 7 === 0) ? C.tan2 : C.tan;
+      if (y < top + 2) c = C.ink; else if (y < top + 4) c = C.tan3;
+      if (y > 129) c = C.ink;
+      px(x, y, 1, 1, c);
+    }
+    // instrument cluster
+    px(28, 97, 98, 30, C.ink); px(30, 99, 94, 26, C.dark);
+    var sp = Math.abs(S.speed);
+    gauge(46, 110, 9, -2.4 + 1.6, 'F');   // fuel
+    gauge(77, 110, 11, -2.4 + sp * 3.2, ''); // speed
+    gauge(108, 110, 9, -2.4 + 1.1, 'T');  // temp
+    // odometer
+    px(63, 119, 29, 7, '#0e0d0c');
+    text(String(Math.floor(S.odo)).padStart(6, '0'), 65, 120, C.gold);
+    // vents + radio
+    px(136, 97, 22, 9, C.ink); px(162, 97, 22, 9, C.ink);
+    for (var i = 0; i < 3; i++) { px(138, 99 + i * 2, 18, 1, '#555'); px(164, 99 + i * 2, 18, 1, '#555'); }
+    px(136, 109, 48, 16, C.ink); px(140, 112, 32, 9, C.blue);
+    var lcd = { P: 'FM 98.5', R: 'REVERSE', N: 'NEUTRAL', D: 'DRIVING' }[S.gear];
+    text(lcd, 142, 114, C.lcd);
+    px(175, 113, 6, 6, '#777'); px(176, 114, 4, 4, '#aaa');
+    // glovebox
+    var b = BOX, open = S.box;
+    px(b.x - 2, b.y - 2, b.w + 4, b.h + 4, S.hoverBox && !S.boxOpen ? C.gold : C.ink);
+    // interior
+    px(b.x, b.y, b.w, b.h, C.box);
+    var maps = ['#f4f2ec', '#e9dcc0', '#f4f2ec', '#ead7a8'];
+    for (i = 0; i < 4; i++) { px(b.x + 6 + i * 17, b.y + 10, 14, 15, maps[i]); px(b.x + 6 + i * 17, b.y + 17, 14, 1, '#c8bfa9'); px(b.x + 12 + i * 17, b.y + 10, 1, 15, '#c8bfa9'); }
+    // door: hinge at the bottom, falls toward the viewer
+    var dh = Math.round(b.h * (1 - open));
+    if (dh > 0) {
+      for (y = 0; y < dh; y++) px(b.x, b.y + b.h - dh + y, b.w, 1, ((y + Math.floor(b.x)) % 5 === 0) ? C.tan2 : C.tan3);
+      px(b.x, b.y + b.h - dh, b.w, 1, C.ink);
+      if (dh > 8) { px(b.x + b.w - 14, b.y + b.h - dh + Math.floor(dh / 2) - 2, 9, 4, C.ink); px(b.x + b.w - 13, b.y + b.h - dh + Math.floor(dh / 2) - 1, 7, 2, '#888'); }
+    }
+    if (open > 0) {
+      var slab = Math.round(8 * open);
+      px(b.x - 2, b.y + b.h + 2, b.w + 4, slab, C.ink);
+      px(b.x, b.y + b.h + 2, b.w, Math.max(0, slab - 2), C.tan2);
+    }
+    if (!S.boxOpen && open === 0) text('GLOVEBOX', b.x + 24, b.y + 11, C.ink);
+    // right vent
+    px(298, 98, 18, 12, C.ink);
+  }
+
+  function gauge(cx, cy, r, ang, label) {
+    for (var y = -r; y <= r; y++) for (var x = -r; x <= r; x++) {
+      var d = Math.sqrt(x * x + y * y);
+      if (d <= r && d > r - 1.2) px(cx + x, cy + y, 1, 1, C.white);
+    }
+    var a = Math.max(-2.4, Math.min(.8, ang));
+    for (var s = 0; s < r - 2; s += .5) px(cx + Math.cos(a) * s, cy + Math.sin(a) * s, 1, 1, C.red);
+    px(cx, cy, 1, 1, C.white);
+    if (label) text(label, cx - 1, cy + 2, '#999');
+  }
+
+  function drawConsole() {
+    for (var y = 132; y < H; y++) {
+      var t = (y - 132) / (H - 132), l = 132 - t * 12, r = 196 + t * 12;
+      px(l, y, r - l, 1, ((y) % 6 === 0) ? C.tan2 : C.tan);
+      px(l, y, 1, 1, C.ink); px(r - 1, y, 1, 1, C.ink);
+    }
+    // gate plate with a front-to-back slot
+    px(GATE.x - 2, GATE.y - 2, GATE.w + 4, GATE.h + 4, C.ink); px(GATE.x, GATE.y, GATE.w, GATE.h, C.dark);
+    px(GATE.x + 8, GATE.y + 4, 3, GATE.h - 8, '#0b0a09');
+    GEARS.forEach(function (gr) { text(gr, GATE.x + 16, gearY(gr) - 2, gr === S.gear ? C.gold : '#8a8580'); });
+    // knob rides up and down the slot
+    var ky = Math.round(S.knobX), kx = GATE.x + 9;
+    px(kx - 1, ky, 3, 5, C.ink);
+    for (var y2 = -5; y2 <= 5; y2++) for (var x2 = -5; x2 <= 5; x2++) {
+      var d = x2 * x2 + y2 * y2;
+      if (d <= 25) px(kx + x2, ky - 2 + y2, 1, 1, d > 16 ? '#0b0a09' : (x2 + y2 < -3 ? '#b5aea5' : '#7a736b'));
+    }
+  }
+
+  function drawSeat() {
+    for (var y = 140; y < H; y++) {
+      var l = 222 - (y - 140) * .3, r = 304 + (y - 140) * .3;
+      px(l, y, r - l, 1, (y % 4 === 0) ? C.tan2 : C.velour);
+    }
+    px(221, 139, 84, 2, C.ink);
+    for (var y2 = 141; y2 < H; y2++) { px(248, y2, 1, 1, C.tan2); px(278, y2, 1, 1, C.tan2); }
+    // door card left
+    for (y = 150; y < H; y++) px(0, y, 22 - (y - 150) * .2, 1, C.tan);
+  }
+
+  function drawWheel() {
+    var w = WHEEL, rad = S.wheel * Math.PI / 180;
+    var spokes = [Math.PI, 0, Math.PI / 2].map(function (a) { return a + rad; });
+    for (var y = -w.r; y <= w.r; y++) {
+      var Y = w.y + y; if (Y >= H) continue;
+      for (var x = -w.r; x <= w.r; x++) {
+        var d = Math.sqrt(x * x + y * y), col = null;
+        if (d <= w.r && d >= w.r - 5) col = (d > w.r - 1.2 || d < w.r - 4) ? '#111' : C.dark;
+        else if (d < w.r - 5) {
+          if (d < 9) col = d > 8 ? C.ink : C.tan;
+          else for (var i = 0; i < 3; i++) {
+            var ang = Math.atan2(y, x), diff = Math.abs(Math.atan2(Math.sin(ang - spokes[i]), Math.cos(ang - spokes[i])));
+            if (diff * d < 2.4) { col = C.dark; break; }
+          }
+        }
+        if (col) px(w.x + x, Y, 1, 1, col);
+      }
+    }
+    // red marker at 12 o'clock so the turn reads clearly
+    var m = rad - Math.PI / 2;
+    for (var k = 0; k < 4; k++) px(w.x + Math.cos(m) * (w.r - 2.5) - 1 + (k % 2), w.y + Math.sin(m) * (w.r - 2.5) - 1 + (k >> 1), 1, 1, C.red);
+    text('4X4', w.x - 5, w.y - 2, C.ink);
+  }
+
+  function frame() {
+    // physics
+    var target = { P: 0, N: 0, D: 1, R: -.35 }[S.gear];
+    S.speed += (target - S.speed) * .03;
+    if (Math.abs(S.speed) < .002) S.speed = 0;
+    var spd = reduce ? S.speed * .3 : S.speed;
+    S.phase += spd * 2.2;
+    PROPS.forEach(function (o) {
+      o.d -= spd * .12;
+      if (o.d < 1.2) { o.d += 60; o.off = Math.floor(Math.random() * 10); }
+      if (o.d > 61.2) o.d -= 60;
+    });
+    S.odo += Math.abs(spd) * .03;
+    if (!S.dragging) S.wheelTarget = S.keyTurn ? S.wheelTarget + S.keyTurn * 4 : S.wheelTarget * .88;
+    S.wheelTarget = Math.max(-120, Math.min(120, S.wheelTarget));
+    S.wheel += (S.wheelTarget - S.wheel) * .35;
+    S.knobX += (gearY(S.gear) - S.knobX) * .3;
+    var bt = S.boxOpen ? 1 : 0;
+    S.box += (bt - S.box) * (reduce ? 1 : .18);
+    if (Math.abs(bt - S.box) < .01) S.box = bt;
+
+    px(0, 0, W, H, '#f4f2ec');
+    drawWindshield(); drawDash(); drawConsole(); drawSeat(); drawWheel();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- input ----
+  function toCanvas(e) {
+    var r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+  }
+  function inWheel(p) { var dx = p.x - WHEEL.x, dy = p.y - WHEEL.y; return dx * dx + dy * dy <= WHEEL.r * WHEEL.r; }
+  function inBox(p) { return p.x >= BOX.x && p.x <= BOX.x + BOX.w && p.y >= BOX.y && p.y <= BOX.y + BOX.h; }
+  function inGate(p) { return p.x >= GATE.x - 2 && p.x <= GATE.x + GATE.w + 2 && p.y >= GATE.y - 2 && p.y <= GATE.y + GATE.h + 2; }
+
+  var drag = null, shiftDrag = false;
+  cv.addEventListener('pointerdown', function (e) {
+    var p = toCanvas(e);
+    if (inWheel(p)) { S.dragging = true; drag = { x: p.x, start: S.wheelTarget }; cv.setPointerCapture(e.pointerId); return; }
+    if (inBox(p)) { openTray(); return; }
+    if (inGate(p)) {
+      var i = Math.round((p.y - GATE.y - 6) / 10); // click a letter, or drag the knob along the slot
+      shiftDrag = true; cv.setPointerCapture(e.pointerId);
+      setGear(GEARS[Math.max(0, Math.min(3, i))]);
+    }
+  });
+  cv.addEventListener('pointermove', function (e) {
+    var p = toCanvas(e);
+    if (drag) { S.wheelTarget = drag.start + (p.x - drag.x) * 3; return; }
+    if (shiftDrag) { setGear(GEARS[Math.max(0, Math.min(3, Math.round((p.y - GATE.y - 6) / 10)))]); return; }
+    S.hoverBox = inBox(p);
+    cv.style.cursor = (inWheel(p) ? 'grab' : (inBox(p) || inGate(p)) ? 'pointer' : 'default');
+  });
+  function endDrag() { S.dragging = false; drag = null; shiftDrag = false; }
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { setGear(GEARS[Math.max(0, Math.min(3, GEARS.indexOf(S.gear) + (e.key === 'ArrowDown' ? 1 : -1)))]); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { S.keyTurn = -1; e.preventDefault(); }
+    if (e.key === 'ArrowRight') { S.keyTurn = 1; e.preventDefault(); }
+    var k = e.key.toUpperCase();
+    if (GEARS.indexOf(k) > -1) setGear(k);
+    if (k === 'G' || e.key === 'Enter') openTray();
+  });
+  cv.addEventListener('keyup', function (e) { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') S.keyTurn = 0; });
+
+  var gearBtns = document.querySelectorAll('.gear');
+  function setGear(gr) {
+    S.gear = gr;
+    gearBtns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.g === gr)); });
+  }
+  gearBtns.forEach(function (b) { b.addEventListener('click', function () { setGear(b.dataset.g); }); });
+
+  // ---- glovebox tray ----
+  var TRIPS = [
+    { name: 'TEXAS → BOSTON', meta: '5 legs · 1,912 mi', date: 'Aug 14, 2026', seed: 3 },
+    { name: 'BABSON → ACADIA', meta: '3 legs · 334 mi', date: 'Oct 10, 2026', seed: 11 },
+    { name: 'WELLESLEY → STOWE', meta: '3 legs · 214 mi', date: 'Nov 9, 2026', seed: 23 }
+  ];
+  var tray = document.getElementById('tray'), shelf = document.getElementById('shelf'), note = document.getElementById('trayNote');
+  var picked = TRIPS.length - 1;
+
+  function routeArt(c, seed) {
+    var x2 = c.getContext('2d'), s = seed;
+    function rnd() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
+    x2.fillStyle = '#ebe6d9'; x2.fillRect(0, 0, 48, 28);
+    x2.fillStyle = '#4f7891'; for (var i = 0; i < 48; i++) x2.fillRect(i, Math.round(6 + Math.sin(i / 5 + seed) * 2), 1, 1);
+    x2.fillStyle = '#4c5a3a'; for (i = 0; i < 6; i++) { var mx = Math.floor(rnd() * 44); x2.fillRect(mx, 20, 3, 1); x2.fillRect(mx + 1, 19, 1, 1); }
+    var y = 22, pts = [];
+    for (var x = 3; x < 46; x++) { y += Math.round((rnd() - .5) * 3); y = Math.max(4, Math.min(24, y)); if (x % 2) { x2.fillStyle = '#c7361f'; x2.fillRect(x, y, 1, 1); } if (x % 14 === 3) pts.push([x, y]); }
+    x2.fillStyle = '#2a2826'; pts.forEach(function (p) { x2.fillRect(p[0] - 1, p[1] - 1, 3, 3); });
+  }
+
+  function drawShelf() {
+    shelf.replaceChildren();
+    TRIPS.forEach(function (t, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'map';
+      b.setAttribute('aria-pressed', String(i === picked));
+      var c = document.createElement('canvas'); c.width = 48; c.height = 28; routeArt(c, t.seed);
+      var n = document.createElement('span'); n.className = 't'; n.textContent = t.name;
+      var m = document.createElement('span'); m.className = 'm'; m.textContent = t.meta;
+      var d = document.createElement('span'); d.className = 'm'; d.textContent = t.date;
+      b.append(c, n, m, d);
+      if (i === TRIPS.length - 1) { var bd = document.createElement('span'); bd.className = 'badge'; bd.textContent = 'LATEST'; b.appendChild(bd); }
+      b.addEventListener('click', function () { pick(i); });
+      shelf.appendChild(b);
+    });
+    var nb = document.createElement('button');
+    nb.type = 'button'; nb.className = 'map new';
+    nb.innerHTML = '<b>+</b><span>NEW TRIP</span>';
+    nb.addEventListener('click', function () { pick(-1); });
+    shelf.appendChild(nb);
+  }
+
+  function pick(i) {
+    picked = i;
+    shelf.querySelectorAll('.map').forEach(function (b, k) { b.setAttribute('aria-pressed', String(k === (i < 0 ? TRIPS.length : i))); });
+    note.textContent = i < 0
+      ? 'A blank map. On the real site this opens an empty trip form.'
+      : 'On the real site, Unfold opens ' + TRIPS[i].name.replace('→', 'to') + ' on the big map, with every leg.';
+  }
+
+  function openTray() {
+    S.boxOpen = true;
+    setTimeout(function () {
+      tray.hidden = false; drawShelf(); pick(picked);
+      shelf.scrollLeft = shelf.scrollWidth;
+      var cur = shelf.querySelector('[aria-pressed="true"]'); if (cur) cur.focus({ preventScroll: true });
+    }, reduce ? 0 : 380);
+  }
+  function closeTray() { tray.hidden = true; S.boxOpen = false; cv.focus(); }
+  document.getElementById('openBox').addEventListener('click', openTray);
+  document.getElementById('closeTray').addEventListener('click', closeTray);
+  document.getElementById('unfold').addEventListener('click', function () {
+    note.textContent = picked < 0 ? 'Starting a new trip… (mockup)' : 'Unfolding ' + TRIPS[picked].name + '… (mockup)';
+  });
+  tray.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeTray();
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      var all = shelf.querySelectorAll('.map'), idx = Array.prototype.indexOf.call(all, document.activeElement);
+      if (idx < 0) return;
+      var nx = Math.max(0, Math.min(all.length - 1, idx + (e.key === 'ArrowRight' ? 1 : -1)));
+      all[nx].focus(); pick(nx === TRIPS.length ? -1 : nx); e.preventDefault();
+    }
+  });
+
+  requestAnimationFrame(frame);
+})();
+</script>

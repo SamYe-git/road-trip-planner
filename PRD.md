@@ -15,10 +15,56 @@ Due Sunday 11/08, deployed on GitHub Pages. Demo at the showcase on Tuesday 11/1
 
 Version 1 is one page with two screens.
 
-### Screen 1: the cab (opening screen)
+### Headline (trip HUD)
 
-- The opening screen shows the truck cab with the folded map on the dash.
-- Clicking the map (or pressing Enter on it) unfolds it into Screen 2.
+The big headline at the top of the page changes with the trip, like a game HUD. It replaces "Every leg. Not just the total." The small "Road trip planner" eyebrow stays above it.
+
+- **No trip yet** (the cab screen, or Screen 2 with an empty form):
+  - Line 1: "WHERE TO?"
+  - Line 2: "Drive time and miles for every stop of your road trip."
+  - No leg counter.
+- **Route loading:** line 1 becomes "PLOTTING ROUTE…". Line 2 and the counter stay as they were.
+- **Trip planned:**
+  - Line 1: "NEXT STOP:" then the town of the current leg's end, with the same town + region label as its stop card, e.g. "NEXT STOP: CONCORD, NH".
+  - Line 2: that leg's drive time and miles, then its arrival, by the same rules as the stop card:
+    - "1 h 25 min · 68 mi · arrive 9:40 AM" (with the weekday when it's not the departure day, as on the card)
+    - with the **earliest** tag before "arrive" when the card has it
+    - "1 h 25 min · 68 mi · Set a leave time" when the card shows "Set a leave time"
+    - "1 h 25 min · 68 mi" alone when Leave is empty and there is no arrival time
+  - A small counter, "LEG 1 OF 3", with **‹** and **›** buttons beside it.
+- **Which leg it shows:**
+  - Leg 1 by default. Every new route (Plan trip, adding or removing a stop, unfolding a saved trip) goes back to leg 1.
+  - Clicking a stop card makes the leg that ends at that stop the current one (the start card picks leg 1). Clicking a leg connector makes that leg the current one.
+  - The current leg's end card (its "next stop") gets a gold outline.
+  - **‹ ›** step to the previous and next leg, and stop at the first and last (the button is disabled there).
+  - ← → do the same while Screen 2 is showing and focus is not in an input, select or textarea.
+  - The headline updates straight away when a Quick stop's time, a Stay's Leave on, a stop's type or Leave changes, with no new OSRM call.
+- **Fold the map** and **Start a new trip** put it back to "WHERE TO?".
+- An error, or an invalid input, leaves the headline as it was before.
+
+### Screen 1: the pixel cab (opening screen)
+
+The opening screen is a pixel-art truck cab you can play with. Everything except the glovebox is decoration and doesn't affect the trip.
+
+- **Canvas:** 320×180, scaled up to the page width with `image-rendering: pixelated`. Through the windshield: sky, sun, two mountain ridges, a road with a dashed center line, grass bands, and trees and posts on both sides. Below it: the dash with speedometer, fuel and temperature gauges, odometer, radio, glovebox, the shifter on the console, the seat and the steering wheel.
+- **Steering wheel:** drag it, or hold ← →. It springs back to center when released. Only the wheel turns, not the road.
+- **Shifter:** the knob moves front to back through **P R N D**. Change gear by dragging the knob, clicking a letter, ↑ ↓, or the **P R N D** buttons under the canvas.
+  - In **D**, the trees and posts on both sides grow and slide past, the road dashes and grass bands rush toward you, and the far mountains stay still.
+  - In **R** the scene runs backward, more slowly.
+  - In **P** and **N** the scene coasts to a stop.
+  - The speedometer needle, the odometer and the radio text follow the gear (radio: "FM 98.5" in P, "REVERSE", "NEUTRAL", "DRIVING").
+- **Glovebox:** clicking it (or the **Open glovebox** button under the canvas) drops the door open, then the **Trip archive** tray appears. The glovebox outline turns gold on hover.
+- **Keyboard:** the canvas is in the Tab order with a visible focus outline and an `aria-label` that explains the controls. With it focused: ← → steer, ↑ ↓ shift, **G** or **Enter** opens the glovebox.
+- The folded map on the dash is removed. The glovebox is now the way into Screen 2.
+
+### Trip archive (the glovebox tray)
+
+- Every saved trip shows as a folded map card, oldest on the left and newest on the right. The newest is tagged **LATEST**. A **+ NEW TRIP** slot comes last.
+- Each card shows a small pixel route drawing, "{start} → {destination}", the number of legs, total miles, and the date it was saved (for example "3 legs · 214 mi", "Nov 9, 2026").
+- The tray opens with the newest trip picked and the shelf scrolled to the right end.
+- Clicking a card picks it. **Unfold map** opens Screen 2 with the picked trip, routed again with OSRM. Clicking **+ NEW TRIP** opens Screen 2 with an empty form straight away.
+- ← → move between cards, **Esc** or **Close ×** closes the tray and returns focus to the canvas.
+- On a phone (≤ 640px) the tray sits below the canvas instead of on top of it.
 
 ### Screen 2: the open map
 
@@ -29,7 +75,7 @@ Version 1 is one page with two screens.
    - **Plan trip:** looks up the route.
 2. **Route.** Stop cards zig-zag down the map, with a leg between each pair of cards.
    - **Summary** at the top: total miles and total drive time.
-   - **Each leg** shows drive time and miles (converted from OSRM's seconds and meters), a **+ pin**, and an **"Open this leg in Google Maps"** link.
+   - **Each leg** shows drive time and miles (converted from OSRM's seconds and meters), a **+ pin**, and an **"Start directions in Google Maps"** link.
    - **Each stop card** shows its town with its state or region (for example "Stowe, VT"), so a wrong match is easy to spot. The region comes from the town search result's `state` (or `country` when there is no state), with US states abbreviated. The card also shows the arrival time.
    - **Middle stops** also have:
      - a **type**, either **Stay** or **Quick stop**, which can be switched on the card at any time
@@ -53,11 +99,14 @@ Version 1 is one page with two screens.
    - Results are listed in the order you reach them, at most 15, each with its name (or "Unnamed {category}"), brand when it differs from the name, and the mile along the leg ("mile 23 of 68").
    - Picking a result and pressing **Add stop** adds it like a town, as a **Quick stop** by default. Its card shows the place name with the category ("MOBIL, GAS").
    - The leg shape is fetched once per open card. Switching categories only calls Overpass again.
-5. **Whole-route link:** "Open this route in Google Maps ↗" at the bottom, with every stop included as a waypoint.
+5. **Whole-route link:** "Start directions for the whole route in Google Maps ↗" at the bottom, with every stop included as a waypoint.
 6. **Saving**
-   - The trip is saved to `localStorage` (stops with coordinates, minutes, Leave time) and restored when the page opens.
-   - **Start a new trip** clears it.
-   - **Fold the map** returns to Screen 1.
+   - `localStorage` holds a list of trips. Each entry has an `id`, `savedAt`, the stops (with coordinates, type, minutes and Leave on), a legs summary (number of legs and total miles, so the archive card needs no route call), and the Leave time.
+   - The trip on Screen 2 saves into its own entry every time it changes, once it has a start and a destination. Saving updates `savedAt`.
+   - The old single saved trip (key `roadTrip`) is moved into the list once, the first time the page opens, then removed.
+   - The page always opens on Screen 1. A saved trip comes back by picking it in the Trip archive.
+   - **Start a new trip** clears the form and starts a new entry. The trip that was on screen stays in the archive.
+   - **Fold the map** returns to the cab.
 
 ## Content and data
 
@@ -72,7 +121,7 @@ Version 1 is one page with two screens.
 | Time at each Quick stop, Leave on for each Stay | Entered by the user, no defaults | User |
 | The user's location | Browser Geolocation API, asked once when the page opens. Optional | User's browser |
 | US state abbreviations (for "Stowe, VT") | Have, a fixed list in the code | Standard USPS codes |
-| Visual design | Have `design/glovebox-mockup.html`. The sketch PDFs are in `design/` | Sam |
+| Visual design | Have `design/glovebox-mockup.html` (Screen 2) and `design/pixel-cab-mockup.html` (Screen 1 and the Trip archive). The sketch PDFs are in `design/` | Sam |
 | `DESIGN.md` | **Missing**, required by the assignment | Sam, based on the mockup |
 
 ## Look
@@ -82,17 +131,19 @@ Follows `DESIGN.md` (to be written from `design/glovebox-mockup.html`).
 ## States
 
 - **Empty**
-  - Before anything is chosen: Screen 1, the folded map in the cab.
+  - Before anything is chosen: Screen 1, the pixel cab in Park.
+  - Empty archive: the tray shows only **+ NEW TRIP**, with the line "No saved trips yet. Start one."
   - When a town search finds nothing (no `results` field): "No town called "…". Check the spelling."
   - When Find along this leg finds nothing: "No {category} within 2 miles of this leg."
   - When a Stay has no Leave on: every stop after it shows "Set a leave time" in place of its arrival time.
-- **Loading:** "Plotting your route…" with "Finding each stop and timing every leg." The truck drives across the road at the top.
+- **Loading:** "Plotting your route…" with "Finding each stop and timing every leg." The truck drives across the road at the top, and the headline reads "PLOTTING ROUTE…".
   - Find along this leg: "Looking along this leg…" inside the add-stop card, with the category pills disabled until it finishes.
 - **Error**
   - OSRM fails, or answers with a `code` other than `"Ok"`: "Couldn't reach the route service. Check your connection, then try again. Your stops are still here." It has a **Try again** button.
   - A town search fails: a one-line message inside the search card, with the card left open.
   - Find along this leg fails (network, not `response.ok`, or a `remark` in the answer): "Couldn't reach the places service. Try again in a moment." with a **Try again** button, inside the card. The card stays open.
-  - In both cases the trip on screen and in `localStorage` stays as it was.
+  - In both cases the trip on screen and in `localStorage` stays as it was. After a route error, the headline goes back to what it showed before loading.
+  - Storage blocked (`localStorage` throws on read or write): the tray shows only **+ NEW TRIP**, with the line "Trips can't be saved in this browser." Planning still works, it just isn't kept.
 - **Ideal:** the summary, every stop card with its arrival time, every leg with time, miles, + pin and Maps link, and the whole-route link.
 - **Invalid input**, refused before any request:
   - Plan trip without a picked start or destination: "Add a destination first" (or the start equivalent).
@@ -100,6 +151,7 @@ Follows `DESIGN.md` (to be written from `design/glovebox-mockup.html`).
   - Add stop on the Find along this leg tab with no place picked: "Pick a place from the list first."
   - A Stay's Leave on earlier than its arrival: "Leave after you arrive ({arrival time})."
   - In that last case, the times keep their last valid values.
+  - None of these change the headline.
 
 The partial state is left out because OSRM returns every leg or none.
 
@@ -109,8 +161,12 @@ The partial state is left out because OSRM returns every leg or none.
 2. Add Concord, NH and Woodstock, NH with the + pins, and see three legs and the new total.
 3. Make Concord a Stay with a Leave on time, and Woodstock a Quick stop with 1 h 0 min. Woodstock's arrival is counted from Concord's Leave on, and Stowe's arrival is Woodstock's arrival + 60 minutes + the last leg, with no "earliest" tag.
 4. Open one leg in Google Maps.
-5. Reload the page and find the trip still there.
+5. Reload the page, open the glovebox, and find the trip as the LATEST card. Unfold it and see the same stops, types and times.
 6. On the Concord → Woodstock leg, open Find along this leg, pick Gas, add the first result, and see it become a Quick stop with four legs.
+7. Drag the steering wheel (and hold ← →): it turns, and springs back to center when released. The road doesn't move.
+8. Shift to D by dragging the knob, clicking the letter, pressing ↓, and the D button: trees and posts slide past, the road dashes rush in, the mountains stay still, and the speedometer, odometer and radio follow. Shift to R and see it run backward. With reduced motion turned on, nothing scrolls past.
+9. Plan two different trips (Start a new trip in between). Open the glovebox: both are there, oldest on the left. Pick the older one, press Unfold map, and see that trip on Screen 2.
+10. With Wellesley → Concord → Woodstock → Stowe planned, the headline reads "NEXT STOP: CONCORD, NH" and "LEG 1 OF 3". Click Woodstock's card: it gets the gold outline and the headline shows leg 2. Press → and ←, then ‹ ›, and see it step through the legs. Change Woodstock's time here and see leg 3's arrival in the headline change without a reload. Press Start a new trip and see "WHERE TO?".
 
 ## Out of scope
 

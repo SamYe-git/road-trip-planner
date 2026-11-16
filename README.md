@@ -10,6 +10,7 @@ Google Maps and other navigation apps show only the total drive time once you ad
 
 - **[OSRM](https://project-osrm.org/docs/v5.24.0/api/)** (public demo server, no key): the driving route, with the distance and duration of every leg.
 - **[Open-Meteo Geocoding](https://open-meteo.com/en/docs/geocoding-api)** (no key): turns a town name into a list of matches with state and coordinates.
+- **[Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API)** (OpenStreetMap, no key): finds gas, coffee, food, hotels and rest areas within 2 miles of a leg for **Find along this leg**.
 - **Google Maps** directions links (just links, no API) open each leg or the whole route.
 
 ## How to use it
@@ -18,7 +19,7 @@ Google Maps and other navigation apps show only the total drive time once you ad
 2. Type a **Start** and a **Destination**, pick each town from the list of matches, set **Leave** to your departure date and time, then press **Plan trip**.
 3. Press the **+** on a leg to add a stop there. Pick the town, choose **Stay** or **Quick stop**, then press **Add stop**.
 4. On each stop, enter how long you stayed (Quick stop) or when you leave (Stay). Every arrival time after it updates straight away.
-5. Click **Open this leg in Google Maps ↗** to navigate one leg, or **Open this route in Google Maps ↗** for the whole trip.
+5. Click **Start directions in Google Maps ↗** to navigate one leg, or **Start directions for the whole route in Google Maps ↗** for the whole trip.
 
 ## Where the agent differed from what I expected
 

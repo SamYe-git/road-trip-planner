@@ -16,13 +16,20 @@
   --font-data: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --space: 8px;
   --radius: 3px;
+  --box: #3b2f24;          /* pixel cab: tray, glovebox interior */
+  --box-2: #54432f;        /* pixel cab: shelf strip */
+  --box-edge: #17120d;     /* pixel cab: tray border, hard shadows */
+  --px-hover: #fffaf0;     /* pixel button hover */
+  --tray-text: #e5dccb;    /* tray footer note */
+  --fold: #d8d2c3;         /* fold lines on map cards */
+  --map-art: #ebe6d9;      /* behind each card's route drawing */
 }
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--graphite); font-family: var(--font-body); }
 .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: calc(var(--space)*3); max-width: 1180px; margin: 0 auto; }
 .note { font-family: var(--font-hand); color: var(--graphite-soft); font-size: 15px; }
-button:focus-visible, input:focus-visible, .map-folded:focus-visible { outline: 3px solid var(--stripe-gold); outline-offset: 3px; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--stripe-gold); outline-offset: 3px; }
 
 /* Header */
 .mast { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: calc(var(--space)*2); border-bottom: 2px solid var(--graphite); padding-bottom: calc(var(--space)*2); }
@@ -34,11 +41,50 @@ h1 em { font-style: normal; color: var(--truck-red); }
 .stripes i:nth-child(2) { background: var(--truck-red); }
 .stripes i:nth-child(3) { background: var(--graphite); }
 
-/* Screen 1: the cab */
-.cab { margin-top: calc(var(--space)*3); }
-.cab svg { width: 100%; height: auto; display: block; }
-.cab-caption { margin: 8px 0 0; text-align: right; }
-.map-folded { cursor: pointer; }
+/* Screen 1: the pixel cab */
+.cab { margin-top: calc(var(--space)*3); display: grid; gap: 14px; }
+.cab[hidden] { display: none; }
+.stage { position: relative; border: 4px solid var(--graphite); box-shadow: 6px 6px 0 var(--graphite); background: var(--graphite); }
+#cabCanvas { display: block; width: 100%; height: auto; aspect-ratio: 320 / 180; image-rendering: pixelated; touch-action: none; }
+#cabCanvas:focus-visible { outline: 4px solid var(--stripe-gold); outline-offset: 4px; }
+.cab-controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.gears { display: flex; gap: 6px; align-items: center; }
+.gear-label { font: 700 12px var(--font-data); text-transform: uppercase; letter-spacing: .05em; color: var(--graphite-soft); }
+.cab-hint { margin: 0; font: 16px/1.3 var(--font-data); color: var(--graphite-soft); }
+
+/* Pixel button: hard shadow, pressing moves it into the shadow */
+.px-btn { font: 700 14px var(--font-data); text-transform: uppercase; color: var(--graphite); background: var(--paper); border: 3px solid var(--graphite); border-radius: 0; padding: 8px 10px; cursor: pointer; box-shadow: 3px 3px 0 var(--graphite); }
+.px-btn:hover { background: var(--px-hover); }
+.px-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+.px-btn[aria-pressed="true"] { background: var(--graphite); color: var(--paper); }
+.px-btn.solid { background: var(--truck-red); color: var(--paper); }
+
+/* Glovebox tray: the Trip archive */
+.tray { position: absolute; left: 4%; right: 4%; top: 8%; background: var(--box); color: var(--paper); border: 4px solid var(--box-edge); box-shadow: 0 0 0 4px var(--velour), 8px 8px 0 4px var(--box-edge); padding: 14px 14px 16px; display: grid; gap: 12px; transform-origin: 78% 0; animation: trayIn .35s steps(6) both; }
+.tray[hidden] { display: none; }
+@keyframes trayIn { from { transform: scaleY(.1); opacity: .2 } to { transform: none; opacity: 1 } }
+.tray-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tray-head h2 { margin: 0; font: 700 16px/1.4 var(--font-data); text-transform: uppercase; color: var(--stripe-gold); }
+.tray-head .px-btn { padding: 6px 8px; }
+.shelf { display: flex; gap: 12px; overflow-x: auto; padding: 14px 8px 14px 2px; scroll-snap-type: x mandatory; background: linear-gradient(var(--box-2), var(--box-2)) bottom / 100% 8px no-repeat; }
+.tray-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.tray-foot p { margin: 0; flex: 1 1 260px; min-width: 0; font: 16px/1.3 var(--font-data); color: var(--tray-text); }
+
+/* Map cards on the shelf */
+.map-card { flex: 0 0 150px; scroll-snap-align: end; position: relative; display: grid; gap: 4px; align-content: start; padding: 8px; text-align: left; cursor: pointer; color: var(--graphite); border: 3px solid var(--graphite); border-radius: 0; box-shadow: 4px 4px 0 var(--box-edge); animation: slideIn .4s steps(4) backwards;
+  background: var(--paper);
+  background-image:
+    linear-gradient(90deg, transparent 49%, var(--fold) 49%, var(--fold) 51%, transparent 51%),
+    linear-gradient(transparent 49%, var(--fold) 49%, var(--fold) 51%, transparent 51%); }
+@keyframes slideIn { from { transform: translateX(-30px); opacity: 0 } to { transform: none; opacity: 1 } }
+.map-card:hover, .map-card[aria-pressed="true"] { transform: translateY(-6px); }
+.map-card[aria-pressed="true"], .map-card:focus-visible { outline: 3px solid var(--stripe-gold); outline-offset: 2px; }
+.map-card canvas { width: 100%; height: auto; aspect-ratio: 48 / 28; image-rendering: pixelated; background: var(--map-art); border: 2px solid var(--graphite); }
+.map-card .t { font: 700 13px/1.4 var(--font-data); text-transform: uppercase; overflow-wrap: anywhere; }
+.map-card .m { font: 16px/1.2 var(--font-data); color: var(--graphite-soft); font-variant-numeric: tabular-nums; }
+.map-card .badge { position: absolute; top: -12px; right: -6px; padding: 3px 5px; background: var(--truck-red); color: var(--paper); border: 2px solid var(--graphite); font: 700 11px var(--font-data); }
+.map-card.new { place-items: center; align-content: center; text-align: center; min-height: 160px; background: transparent; color: var(--paper); border: 3px dashed var(--velour); box-shadow: none; font: 700 13px/1.6 var(--font-data); }
+.map-card.new b { font-size: 28px; color: var(--stripe-gold); }
 
 /* Screen 2: the open map */
 .sheet { margin-top: calc(var(--space)*3); background: var(--paper-2); border: 1.5px solid var(--graphite); position: relative; overflow: hidden;
@@ -126,6 +172,21 @@ h1 em { font-style: normal; color: var(--truck-red); }
 .addrow, .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font: 600 13px var(--font-body); background: transparent; color: var(--graphite); border: 1.5px solid var(--graphite); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--graphite); color: var(--paper); }
+.chip:disabled { opacity: .5; cursor: default; }
+
+/* Add-stop tabs and Find along this leg */
+.tabs { display: flex; flex-wrap: wrap; gap: calc(var(--space)*2); }
+.tab { font: 12px var(--font-data); text-transform: uppercase; letter-spacing: .12em; background: transparent; color: var(--graphite-soft); border: 0; border-bottom: 2px solid transparent; padding: 4px 0; cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--graphite); border-bottom-color: var(--graphite); }
+.pane { display: flex; flex-direction: column; gap: 8px; }
+.pane[hidden] { display: none; }
+.status:empty, .places:empty { display: none; }
+.dashline { height: 2px; margin-top: 4px; background: repeating-linear-gradient(90deg, var(--graphite) 0 6px, transparent 6px 11px); animation: dashfill 2.2s linear infinite; }
+@keyframes dashfill { from { width: 0 } to { width: 100% } }
+.places { display: flex; flex-direction: column; gap: 2px; max-height: 280px; overflow-y: auto; }
+.place { text-align: left; font: 700 14px var(--font-body); color: var(--graphite); background: transparent; border: 0; border-left: 3px solid transparent; padding: 6px 10px; cursor: pointer; }
+.place span { display: block; font: 400 12px var(--font-data); color: var(--graphite-soft); }
+.place[aria-pressed="true"] { border-left-color: var(--graphite); background: var(--paper-2); }
 
 /* Remove × on middle stops */
 .remove { position: absolute; bottom: 6px; right: 8px; width: 24px; height: 24px; border: 0; background: transparent; color: var(--graphite-soft); font-size: 20px; line-height: 1; cursor: pointer; }
@@ -146,11 +207,13 @@ h1 em { font-style: normal; color: var(--truck-red); }
 .btn-ghost { font: 600 14px var(--font-body); background: transparent; border: 1.5px solid var(--graphite); color: var(--graphite); border-radius: var(--radius); padding: 7px 14px; cursor: pointer; }
 
 @media (max-width: 640px) {
+  .tray { position: static; box-shadow: none; }
+  .map-card { flex-basis: 128px; }
   .edge { width: 12%; opacity: .6 }
   .route { width: 80%; }
   .stop { width: 88%; }
   .road .truck { width: 110px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sheet.opening, .loading .truck { animation: none; }
+  .sheet.opening, .loading .truck, .dashline, .tray, .map-card { animation: none; }
 }
