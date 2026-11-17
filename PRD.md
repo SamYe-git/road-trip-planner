@@ -17,7 +17,7 @@ Version 1 is one page with two screens.
 
 ### Headline (trip HUD)
 
-The big headline at the top of the page changes with the trip, like a game HUD. It replaces "Every leg. Not just the total." The small "Road trip planner" eyebrow stays above it.
+The big headline at the top of the page changes with the trip, like a game HUD. It replaces "Let the journey start." The small "Road trip planner" eyebrow stays above it.
 
 - **No trip yet** (the cab screen, or Screen 2 with an empty form):
   - Line 1: "WHERE TO?"
